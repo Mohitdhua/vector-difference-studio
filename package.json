@@ -1,0 +1,20 @@
+{
+  "name": "vector-difference-studio",
+  "version": "1.0.0",
+  "description": "Interactive universal vector Spot the Difference puzzle creator & editor",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8080"
+  },
+  "keywords": [
+    "svg",
+    "puzzle",
+    "spot-the-difference",
+    "vector-editor",
+    "bezier",
+    "canvas",
+    "agentic-ai"
+  ],
+  "author": "Mohitdhua",
+  "license": "MIT"
+}
