@@ -873,6 +873,8 @@
     // Undo / Redo
     let historyStack = [];
     let redoStack = [];
+    let activeDiffMarkers = [];
+    let redoDiffMarkers = [];
 
     const viewport = document.getElementById('viewport');
     const layerOrig = document.getElementById('layer-orig');
@@ -1026,6 +1028,8 @@
 
       masterSvgData = clean;
       hasSvgLoaded = true;
+      activeDiffMarkers = [];
+      redoDiffMarkers = [];
 
       emptyDropzone.style.display = 'none';
       zoomControls.style.display = 'flex';
@@ -1040,6 +1044,8 @@
 
       historyStack = [];
       redoStack = [];
+      activeDiffMarkers = [];
+      redoDiffMarkers = [];
       pushHistory();
       setTimeout(fitToScreen, 60);
       countDiffs();
@@ -1244,13 +1250,17 @@
       return [vx, vy];
     }
 
-    function pushHistory() {
+    function pushHistory(marker = null) {
       if (!hasSvgLoaded) return;
       const svg = layerMod.querySelector('svg');
       if (!svg) return;
       historyStack.push(svg.innerHTML);
       if (historyStack.length > 50) historyStack.shift();
+      if (marker) {
+        activeDiffMarkers.push(marker);
+      }
       redoStack = [];
+      redoDiffMarkers = [];
       countDiffs();
       reportStateToBridge();
     }
@@ -1259,6 +1269,9 @@
       if (!hasSvgLoaded || historyStack.length <= 1) return;
       const current = historyStack.pop();
       redoStack.push(current);
+      if (activeDiffMarkers.length > 0) {
+        redoDiffMarkers.push(activeDiffMarkers.pop());
+      }
       const prev = historyStack[historyStack.length - 1];
       const svg = layerMod.querySelector('svg');
       if (svg) {
@@ -1272,6 +1285,9 @@
       if (!hasSvgLoaded || redoStack.length === 0) return;
       const next = redoStack.pop();
       historyStack.push(next);
+      if (redoDiffMarkers.length > 0) {
+        activeDiffMarkers.push(redoDiffMarkers.pop());
+      }
       const svg = layerMod.querySelector('svg');
       if (svg) {
         svg.innerHTML = next;
@@ -1291,6 +1307,8 @@
       }
       historyStack = [];
       redoStack = [];
+      activeDiffMarkers = [];
+      redoDiffMarkers = [];
       pushHistory();
       countDiffs();
     }
@@ -1454,11 +1472,11 @@
       return modified;
     }
 
-    function countDiffs() {
-      if (!hasSvgLoaded) return 0;
+    function getDiffClusters() {
+      if (!hasSvgLoaded) return [];
       const origPaths = layerOrig.querySelectorAll('path');
       const modPaths = layerMod.querySelectorAll('path');
-      let diffCount = 0;
+      const rawDiffs = [];
 
       for (let i = 0; i < Math.min(origPaths.length, modPaths.length); i++) {
         const dOrig = origPaths[i].getAttribute('d');
@@ -1468,8 +1486,57 @@
         const isErased = (modPaths[i].style.display === 'none' || modPaths[i].getAttribute('display') === 'none');
 
         if (dOrig !== dMod || fOrig !== fMod || isErased) {
-          diffCount++;
+          try {
+            const targetEl = isErased ? origPaths[i] : modPaths[i];
+            const bbox = targetEl.getBBox();
+            if (bbox.width <= 2 && bbox.height <= 2) continue;
+            const cx = bbox.x + bbox.width / 2;
+            const cy = bbox.y + bbox.height / 2;
+            if (cx <= 5 && cy <= 5) continue;
+            rawDiffs.push({
+              index: i,
+              type: isErased ? "object_erased" : (dOrig !== dMod ? "contour_deformed" : "color_shifted"),
+              cx, cy,
+              bbox: { x: bbox.x, y: bbox.y, w: bbox.width, h: bbox.height }
+            });
+          } catch(e) {}
         }
+      }
+
+      // Group nearby overlapping changes (within 75px) into single visual differences
+      const clusters = [];
+      rawDiffs.forEach(d => {
+        let matched = clusters.find(c => Math.hypot(c.cx - d.cx, c.cy - d.cy) < 145);
+        if (!matched) {
+          clusters.push({
+            id: clusters.length + 1,
+            cx: d.cx,
+            cy: d.cy,
+            type: d.type,
+            items: [d],
+            bbox: { minX: d.bbox.x, minY: d.bbox.y, maxX: d.bbox.x + d.bbox.w, maxY: d.bbox.y + d.bbox.h }
+          });
+        } else {
+          matched.items.push(d);
+          matched.bbox.minX = Math.min(matched.bbox.minX, d.bbox.x);
+          matched.bbox.minY = Math.min(matched.bbox.minY, d.bbox.y);
+          matched.bbox.maxX = Math.max(matched.bbox.maxX, d.bbox.x + d.bbox.w);
+          matched.bbox.maxY = Math.max(matched.bbox.maxY, d.bbox.y + d.bbox.h);
+          matched.cx = (matched.bbox.minX + matched.bbox.maxX) / 2;
+          matched.cy = (matched.bbox.minY + matched.bbox.maxY) / 2;
+        }
+      });
+
+      return clusters;
+    }
+
+    function countDiffs() {
+      if (!hasSvgLoaded) return 0;
+      let diffCount = 0;
+      if (activeDiffMarkers.length > 0) {
+        diffCount = activeDiffMarkers.length;
+      } else {
+        diffCount = getDiffClusters().length;
       }
 
       const badge = document.getElementById('diff-count-badge');
@@ -1516,46 +1583,24 @@
       solutionOverlay.classList.remove('hidden');
       solutionOverlay.innerHTML = '';
 
-      const origPaths = layerOrig.querySelectorAll('path');
-      const modPaths = layerMod.querySelectorAll('path');
-      let index = 1;
-      const existingCircles = [];
+      const markers = (activeDiffMarkers.length > 0) ? activeDiffMarkers : getDiffClusters().map((cl, i) => ({
+        x: cl.cx,
+        y: cl.cy,
+        radius: Math.min(Math.max(cl.bbox.maxX - cl.bbox.minX, cl.bbox.maxY - cl.bbox.minY) / 2 + 15, 75),
+        name: cl.type
+      }));
 
-      for (let i = 0; i < Math.min(origPaths.length, modPaths.length); i++) {
-        const dOrig = origPaths[i].getAttribute('d');
-        const dMod = modPaths[i].getAttribute('d');
-        const fOrig = origPaths[i].getAttribute('fill');
-        const fMod = modPaths[i].getAttribute('fill');
-        const isErased = (modPaths[i].style.display === 'none' || modPaths[i].getAttribute('display') === 'none');
-
-        if (dOrig !== dMod || fOrig !== fMod || isErased) {
-          try {
-            // If erased in puzzle, take bbox from original baseline!
-            const targetEl = isErased ? origPaths[i] : modPaths[i];
-            const bbox = targetEl.getBBox();
-            if (bbox.width <= 2 && bbox.height <= 2) continue;
-            const cx = bbox.x + bbox.width / 2;
-            const cy = bbox.y + bbox.height / 2;
-            if (cx <= 5 && cy <= 5) continue; // Skip edge boundary artifacts
-
-            // Deduplicate sister paths (within 30px)
-            const isDup = existingCircles.some(c => Math.hypot(c.x - cx, c.y - cy) < 30);
-            if (isDup) continue;
-            existingCircles.push({ x: cx, y: cy });
-
-            const r = Math.min(Math.max(bbox.width, bbox.height) / 2 + 10, 80);
-
-            const circle = document.createElement('div');
-            circle.className = 'absolute rounded-full border-2 border-red-500 pointer-events-none flex items-center justify-center font-bold text-red-500 text-xs shadow-lg shadow-red-500/40';
-            circle.style.left = (panX + (cx - r) * zoomLevel) + 'px';
-            circle.style.top = (panY + (cy - r) * zoomLevel) + 'px';
-            circle.style.width = (r * 2 * zoomLevel) + 'px';
-            circle.style.height = (r * 2 * zoomLevel) + 'px';
-            circle.innerHTML = `<span class="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] -mt-1 -mr-1 self-start ml-auto">${index++}</span>`;
-            solutionOverlay.appendChild(circle);
-          } catch(e) {}
-        }
-      }
+      markers.forEach((m, idx) => {
+        const r = m.radius || 32;
+        const circle = document.createElement('div');
+        circle.className = 'absolute rounded-full border-2 border-red-500 pointer-events-none flex items-center justify-center font-bold text-red-500 text-xs shadow-lg shadow-red-500/40';
+        circle.style.left = (panX + (m.x - r) * zoomLevel) + 'px';
+        circle.style.top = (panY + (m.y - r) * zoomLevel) + 'px';
+        circle.style.width = (r * 2 * zoomLevel) + 'px';
+        circle.style.height = (r * 2 * zoomLevel) + 'px';
+        circle.innerHTML = `<span class="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] -mt-1 -mr-1 self-start ml-auto font-bold">${idx + 1}</span>`;
+        solutionOverlay.appendChild(circle);
+      });
     }
 
     // VIEWPORT EVENT LISTENERS
@@ -2487,6 +2532,9 @@ ${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bb
       } else if (action === 'reset') {
         resetToOriginal();
         result = { success: true };
+      } else if (action === 'setTargetMode') {
+        setTargetMode(params.mode || 'whole');
+        result = { success: true, targetMode };
       } else if (action === 'toggleSolution') {
         toggleSolutionOverlay();
         result = { success: true, isShowingSolution };
@@ -2549,8 +2597,16 @@ ${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bb
           }
         } catch(e) {}
 
-        if (x !== undefined && y !== undefined) triggerActionPing(x, y);
-        pushHistory();
+        const targetX = (x !== undefined) ? x : (target.getBBox().x + target.getBBox().width / 2);
+        const targetY = (y !== undefined) ? y : (target.getBBox().y + target.getBBox().height / 2);
+        if (targetX !== undefined && targetY !== undefined) triggerActionPing(targetX, targetY);
+        pushHistory({
+          type: 'erase',
+          x: Math.round(targetX),
+          y: Math.round(targetY),
+          radius: 35,
+          name: 'Object Erased'
+        });
         return { success: true, erased: true, totalDiffs: countDiffs() };
       },
 
@@ -2569,7 +2625,13 @@ ${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bb
         });
 
         triggerActionPing(anchorX, anchorY);
-        pushHistory();
+        pushHistory({
+          type: 'pull',
+          x: Math.round(anchorX),
+          y: Math.round(anchorY),
+          radius: Math.min(Math.max(radius || 32, 28), 55),
+          name: 'Micro-Contour Nudge'
+        });
         return { success: true, modifiedPaths: snapshots.length, totalDiffs: countDiffs() };
       },
 
@@ -2594,8 +2656,16 @@ ${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bb
 
         if (!target) return { error: "Target shape not found" };
         target.setAttribute('fill', colorHex);
-        if (x !== undefined && y !== undefined) triggerActionPing(x, y);
-        pushHistory();
+        const targetX = (x !== undefined) ? x : (target.getBBox().x + target.getBBox().width / 2);
+        const targetY = (y !== undefined) ? y : (target.getBBox().y + target.getBBox().height / 2);
+        if (targetX !== undefined && targetY !== undefined) triggerActionPing(targetX, targetY);
+        pushHistory({
+          type: 'erase',
+          x: Math.round(targetX),
+          y: Math.round(targetY),
+          radius: 35,
+          name: 'Object Erased'
+        });
         return { success: true, newColor: colorHex, totalDiffs: countDiffs() };
       },
 
@@ -2664,7 +2734,7 @@ ${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bb
         });
       },
 
-      autoGenerateDiffs: function(count = 5, difficulty = 'medium') {
+      autoGenerateDiffs: function(count = 5, difficulty = 'medium', strategy = 'balanced') {
         if (!hasSvgLoaded) return { error: "No SVG loaded" };
         const svg = layerMod.querySelector('svg');
         if (!svg) return { error: "No SVG" };
@@ -2731,8 +2801,9 @@ ${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bb
         const usedIndices = new Set();
         const targetDiffs = Math.min(count, candidates.length);
 
-        const eraseCount = Math.max(1, Math.floor(targetDiffs * 0.4));
-        const colorCount = Math.max(1, Math.floor(targetDiffs * 0.4));
+        const isOnlyPulls = (strategy === 'micro_pulls' || strategy === 'pulls');
+        const eraseCount = isOnlyPulls ? 0 : Math.max(1, Math.floor(targetDiffs * 0.4));
+        const colorCount = isOnlyPulls ? 0 : Math.max(1, Math.floor(targetDiffs * 0.4));
 
         // 1. Clean Object Erases (with sister outline suppression)
         const shuffledAcc = accessories.sort(() => 0.5 - Math.random());
@@ -2790,16 +2861,19 @@ ${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bb
           const shiftX = (Math.random() > 0.5 ? 1 : -1) * shiftDist;
           const shiftY = (Math.random() > 0.5 ? 1 : -1) * (shiftDist * 0.6);
 
-          const snap = {
-            el: c.p,
-            tokens: c.p.getAttribute('d').match(/([a-df-z]|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/gi) || []
-          };
-          applyLinkedPull(snap, c.cx, c.cy, shiftX, shiftY, 28, 40);
+          const linkedEls = getLinkedPaths(c.cx, c.cy);
+          const snaps = linkedEls.map(el => ({
+            el: el,
+            tokens: el.getAttribute('d').match(/([a-df-z]|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/gi) || []
+          }));
+          snaps.forEach(snap => {
+            applyLinkedPull(snap, c.cx, c.cy, shiftX, shiftY, 32, 42);
+          });
           usedIndices.add(c.idx);
           triggerActionPing(c.cx, c.cy);
           diffsCreated.push({
             type: 'pull',
-            name: `Contour micro-pull at (${c.cx}, ${c.cy})`,
+            name: `Whole-group micro-contour nudge at (${c.cx}, ${c.cy})`,
             bbox: c.bbox
           });
         }
@@ -2827,33 +2901,22 @@ ${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bb
       },
 
       getDiffs: function() {
-        const origPaths = layerOrig.querySelectorAll('path');
-        const modPaths = layerMod.querySelectorAll('path');
-        let diffs = [];
-
-        for (let i = 0; i < Math.min(origPaths.length, modPaths.length); i++) {
-          const dOrig = origPaths[i].getAttribute('d');
-          const dMod = modPaths[i].getAttribute('d');
-          const fOrig = origPaths[i].getAttribute('fill');
-          const fMod = modPaths[i].getAttribute('fill');
-          const isErased = (modPaths[i].style.display === 'none' || modPaths[i].getAttribute('display') === 'none');
-
-          if (dOrig !== dMod || fOrig !== fMod || isErased) {
-            let bbox = { x: 0, y: 0, width: 0, height: 0 };
-            try { 
-              const targetEl = isErased ? origPaths[i] : modPaths[i];
-              bbox = targetEl.getBBox(); 
-            } catch(e) {}
-            diffs.push({
-              index: i,
-              type: isErased ? "object_erased" : (dOrig !== dMod ? "contour_deformed" : "color_shifted"),
-              fillOrig: fOrig,
-              fillMod: fMod,
-              bbox: { x: Math.round(bbox.x), y: Math.round(bbox.y), w: Math.round(bbox.width), h: Math.round(bbox.height) }
-            });
-          }
-        }
-        return { count: diffs.length, diffs };
+        const clusters = getDiffClusters();
+        return {
+          diffCount: clusters.length,
+          clusters: clusters.map(c => ({
+            id: c.id,
+            center: { x: Math.round(c.cx), y: Math.round(c.cy) },
+            type: c.type,
+            elementsCount: c.items.length,
+            box: {
+              x: Math.round(c.bbox.minX),
+              y: Math.round(c.bbox.minY),
+              w: Math.round(c.bbox.maxX - c.bbox.minX),
+              h: Math.round(c.bbox.maxY - c.bbox.minY)
+            }
+          }))
+        };
       },
 
       undo: undo,
