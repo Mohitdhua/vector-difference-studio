@@ -2487,6 +2487,9 @@ ${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bb
       } else if (action === 'reset') {
         resetToOriginal();
         result = { success: true };
+      } else if (action === 'toggleSolution') {
+        toggleSolutionOverlay();
+        result = { success: true, isShowingSolution };
       } else if (action === 'exportPuzzle') {
         exportChallengeAndSolution(params.format || 'png', params.scale || 2);
         result = { success: true };

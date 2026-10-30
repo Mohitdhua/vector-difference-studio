@@ -105,6 +105,14 @@ TOOLS = [
         }
     },
     {
+        "name": "studio_toggle_solution",
+        "description": "Toggle red solution circle highlights on the canvas to inspect differences.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
         "name": "studio_undo",
         "description": "Undo the most recent difference or modification.",
         "inputSchema": {
@@ -285,6 +293,16 @@ def handle_rpc(request):
 
             elif tool_name == "studio_get_diffs":
                 r = requests.get(f"{STUDIO_URL}/api/diffs", timeout=3)
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "result": {
+                        "content": [{"type": "text", "text": json.dumps(r.json(), indent=2)}]
+                    }
+                }
+
+            elif tool_name == "studio_toggle_solution":
+                r = requests.post(f"{STUDIO_URL}/api/action", json={"action": "toggleSolution", "sync": True}, timeout=3)
                 return {
                     "jsonrpc": "2.0",
                     "id": req_id,
