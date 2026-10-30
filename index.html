@@ -1047,6 +1047,7 @@
       activeDiffMarkers = [];
       redoDiffMarkers = [];
       pushHistory();
+      fitToScreen();
       setTimeout(fitToScreen, 60);
       countDiffs();
       setViewMode('mod');
@@ -1125,6 +1126,9 @@
       layerOrig.style.transform = transform;
       document.getElementById('zoom-text').textContent = Math.round(zoomLevel * 100) + '%';
       updateBrushRingSize();
+      if (isShowingSolution) {
+        renderSolutionCircles();
+      }
     }
 
     function startSmoothPan() {
@@ -1567,20 +1571,8 @@
       }
     }
 
-    function toggleSolutionOverlay() {
-      if (!hasSvgLoaded) return;
-      isShowingSolution = !isShowingSolution;
-      const btn = document.getElementById('btn-solution');
-      
-      if (!isShowingSolution) {
-        solutionOverlay.classList.add('hidden');
-        solutionOverlay.innerHTML = '';
-        btn.classList.remove('bg-amber-500/20', 'border-amber-400');
-        return;
-      }
-
-      btn.classList.add('bg-amber-500/20', 'border-amber-400');
-      solutionOverlay.classList.remove('hidden');
+    function renderSolutionCircles() {
+      if (!solutionOverlay || !isShowingSolution) return;
       solutionOverlay.innerHTML = '';
 
       const markers = (activeDiffMarkers.length > 0) ? activeDiffMarkers : getDiffClusters().map((cl, i) => ({
@@ -1598,9 +1590,26 @@
         circle.style.top = (panY + (m.y - r) * zoomLevel) + 'px';
         circle.style.width = (r * 2 * zoomLevel) + 'px';
         circle.style.height = (r * 2 * zoomLevel) + 'px';
-        circle.innerHTML = `<span class="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] -mt-1 -mr-1 self-start ml-auto font-bold">${idx + 1}</span>`;
+        circle.innerHTML = `<span class="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] -mt-1 -mr-1 self-start ml-auto font-bold shadow">${idx + 1}</span>`;
         solutionOverlay.appendChild(circle);
       });
+    }
+
+    function toggleSolutionOverlay() {
+      if (!hasSvgLoaded) return;
+      isShowingSolution = !isShowingSolution;
+      const btn = document.getElementById('btn-solution');
+      
+      if (!isShowingSolution) {
+        solutionOverlay.classList.add('hidden');
+        solutionOverlay.innerHTML = '';
+        btn.classList.remove('bg-amber-500/20', 'border-amber-400');
+        return;
+      }
+
+      btn.classList.add('bg-amber-500/20', 'border-amber-400');
+      solutionOverlay.classList.remove('hidden');
+      renderSolutionCircles();
     }
 
     // VIEWPORT EVENT LISTENERS
