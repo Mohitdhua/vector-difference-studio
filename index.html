@@ -93,6 +93,24 @@
       box-shadow: 0 0 8px #38bdf8;
     }
 
+    /* Agent Edit Ping Animation */
+    @keyframes agent-ping {
+      0% { transform: scale(0.2); opacity: 1; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+    .agent-action-ping {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border: 2.5px solid #a855f7;
+      border-radius: 50%;
+      background: rgba(168, 85, 247, 0.2);
+      pointer-events: none;
+      animation: agent-ping 0.8s ease-out forwards;
+      z-index: 60;
+      transform-origin: center;
+    }
+
     /* Difference Glow */
     .path-diff-glow {
       filter: drop-shadow(0 0 8px #f43f5e) !important;
@@ -135,7 +153,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 10px 6px;
+      padding: 9px 5px;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.06);
@@ -158,6 +176,16 @@
     .tool-card.active svg {
       stroke: #38bdf8;
       filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6));
+    }
+    .tool-card.active-rose {
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.22), rgba(239, 68, 68, 0.22)) !important;
+      border-color: rgba(244, 63, 94, 0.65) !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 16px -2px rgba(244, 63, 94, 0.4) !important;
+    }
+    .tool-card.active-rose svg {
+      stroke: #fb7185 !important;
+      filter: drop-shadow(0 0 6px rgba(251, 113, 133, 0.6)) !important;
     }
 
     /* Segmented Capsule Controls */
@@ -286,7 +314,7 @@
       <!-- Active File Badge -->
       <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.05]">
         <span id="file-status-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-        <span id="file-name-badge" class="text-[11px] text-slate-400 font-mono font-medium truncate max-w-[160px]">No SVG Loaded</span>
+        <span id="file-name-badge" class="text-[11px] text-slate-400 font-mono font-medium truncate max-w-[150px]">No SVG Loaded</span>
         <button id="close-file-btn" onclick="clearToEmptyState()" class="hidden ml-1 text-slate-500 hover:text-rose-400 text-[10px] p-0.5 rounded transition-colors" title="Close artwork & open dropzone">✕</button>
       </div>
     </div>
@@ -324,8 +352,15 @@
       </button>
     </div>
 
-    <!-- RIGHT: SOLUTION & EXPORT DROPDOWN -->
+    <!-- RIGHT: COPILOT, SOLUTION & EXPORT DROPDOWN -->
     <div class="flex items-center space-x-2 relative">
+      
+      <!-- AI Copilot Button -->
+      <button onclick="toggleCopilotModal()" id="btn-copilot" class="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-xs font-semibold text-purple-300 border border-purple-500/30 flex items-center space-x-1.5 transition-all shadow-sm" title="Open AI Agent Copilot & Auto-Difference Generator">
+        <span id="agent-bridge-dot" class="w-2 h-2 rounded-full bg-purple-400 pulse-dot"></span>
+        <span class="font-bold">🤖 Copilot</span>
+      </button>
+
       <!-- Solution Button -->
       <button onclick="toggleSolutionOverlay()" id="btn-solution" class="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-amber-300 border border-amber-500/30 flex items-center space-x-1.5 transition-all" title="Toggle circled answer keys on canvas">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
@@ -395,60 +430,70 @@
     <!-- REFINED LEFT SIDEBAR (265px) -->
     <aside class="w-[265px] bg-[#0c0f17]/95 backdrop-blur-md border-r border-white/[0.07] flex flex-col flex-shrink-0 z-20 overflow-y-auto">
       
-      <!-- SECTION 1: CREATIVE TOOLS (FEATURING LINKED POINT PULL) -->
-      <div class="p-3.5 border-b border-white/[0.06]">
-        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex justify-between items-center">
+      <!-- SECTION 1: CREATIVE TOOLS (FEATURING LINKED POINT PULL & OBJECT ERASE) -->
+      <div class="p-3 border-b border-white/[0.06]">
+        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex justify-between items-center">
           <span>Creative Tools</span>
-          <span class="text-[9px] text-sky-400 font-mono">1:Pull 2:Pan</span>
+          <span class="text-[9px] text-sky-400 font-mono">1:Pull 7:Erase</span>
         </div>
         
-        <div class="grid grid-cols-2 gap-2">
-          <!-- Linked Point Pull (1) -->
+        <div class="grid grid-cols-2 gap-1.5">
+          <!-- 1. Linked Point Pull -->
           <button id="tool-pull" onclick="setTool('pull')" class="tool-card active" title="Click & drag any curve point to pull outline + colors together with zero tears! (Key: 1)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-1"><circle cx="12" cy="12" r="3"/><path d="m14 14 6 6"/><path d="M19 14v6h-6"/></svg>
-            <span class="text-[11px] font-semibold">Point Pull</span>
-            <span class="text-[9px] text-sky-400 font-mono mt-0.5 font-bold">1</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-0.5"><circle cx="12" cy="12" r="3"/><path d="m14 14 6 6"/><path d="M19 14v6h-6"/></svg>
+            <span class="text-[11px] font-semibold leading-tight">Point Pull</span>
+            <span class="text-[9px] text-sky-400 font-mono font-bold">1</span>
           </button>
 
-          <!-- Pan Hand (2) -->
+          <!-- 2. Pan Hand -->
           <button id="tool-pan" onclick="setTool('pan')" class="tool-card" title="Pan artboard canvas (Key: 2, H, or Right-Click Drag)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-1"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
-            <span class="text-[11px] font-semibold">Pan Hand</span>
-            <span class="text-[9px] text-slate-500 font-mono mt-0.5">2</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-0.5"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+            <span class="text-[11px] font-semibold leading-tight">Pan Hand</span>
+            <span class="text-[9px] text-slate-500 font-mono">2</span>
           </button>
 
-          <!-- Thicken (3) -->
+          <!-- 3. Object Erase (NEW) -->
+          <button id="tool-erase" onclick="setTool('erase')" class="tool-card col-span-2 group" title="Click any accessory, detail, button, star, or pattern to cleanly erase it from the puzzle! (Key: 7 or E)">
+            <div class="flex items-center space-x-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-rose-400 group-hover:scale-110 transition-transform"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+              <span class="text-[11px] font-bold text-rose-300">Object Erase</span>
+              <span class="text-[9px] text-rose-400 font-mono font-bold bg-rose-500/10 px-1 rounded">7 / E</span>
+            </div>
+            <span class="text-[9px] text-slate-400 mt-0.5">Click any detail to vanish it cleanly</span>
+          </button>
+
+          <!-- 4. Thicken -->
           <button id="tool-thicken" onclick="setTool('thicken')" class="tool-card" title="Click on curves to expand them outward (Key: 3)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-1"><path d="m15 18 3-3-3-3"/><path d="m9 6-3 3 3 3"/><line x1="21" x2="18" y1="15" y2="15"/><line x1="3" x2="6" y1="9" y2="9"/><path d="M12 3v18"/></svg>
-            <span class="text-[11px] font-semibold">Thicken</span>
-            <span class="text-[9px] text-slate-500 font-mono mt-0.5">3</span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-0.5"><path d="m15 18 3-3-3-3"/><path d="m9 6-3 3 3 3"/><line x1="21" x2="18" y1="15" y2="15"/><line x1="3" x2="6" y1="9" y2="9"/><path d="M12 3v18"/></svg>
+            <span class="text-[11px] font-semibold leading-tight">Thicken</span>
+            <span class="text-[9px] text-slate-500 font-mono">3</span>
           </button>
 
-          <!-- Contract / Thin (4) -->
+          <!-- 5. Contract / Thin -->
           <button id="tool-thin" onclick="setTool('thin')" class="tool-card" title="Click on curves to shrink them inward (Key: 4)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-1"><path d="m18 15-3 3 3 3"/><path d="m6 9 3-3-3-3"/><line x1="15" x2="21" y1="18" y2="18"/><line x1="3" x2="9" y1="6" y2="6"/><path d="M12 3v18"/></svg>
-            <span class="text-[11px] font-semibold">Contract</span>
-            <span class="text-[9px] text-slate-500 font-mono mt-0.5">4</span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-0.5"><path d="m18 15-3 3 3 3"/><path d="m6 9 3-3-3-3"/><line x1="15" x2="21" y1="18" y2="18"/><line x1="3" x2="9" y1="6" y2="6"/><path d="M12 3v18"/></svg>
+            <span class="text-[11px] font-semibold leading-tight">Contract</span>
+            <span class="text-[9px] text-slate-500 font-mono">4</span>
           </button>
 
-          <!-- Nudge Gap (5) -->
+          <!-- 6. Nudge Gap -->
           <button id="tool-gap" onclick="setTool('gap')" class="tool-card" title="Nudge feature spacing & gaps (Key: 5)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-1"><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/><line x1="3" x2="21" y1="12" y2="12"/></svg>
-            <span class="text-[11px] font-semibold">Nudge Gap</span>
-            <span class="text-[9px] text-slate-500 font-mono mt-0.5">5</span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-0.5"><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/><line x1="3" x2="21" y1="12" y2="12"/></svg>
+            <span class="text-[11px] font-semibold leading-tight">Nudge Gap</span>
+            <span class="text-[9px] text-slate-500 font-mono">5</span>
           </button>
 
-          <!-- Recolor (6) -->
+          <!-- 7. Recolor -->
           <button id="tool-fill" onclick="setTool('fill')" class="tool-card" title="Click any path to apply palette color (Key: 6)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-1"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2Z"/></svg>
-            <span class="text-[11px] font-semibold">Recolor</span>
-            <span class="text-[9px] text-slate-500 font-mono mt-0.5">6</span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-0.5"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2Z"/></svg>
+            <span class="text-[11px] font-semibold leading-tight">Recolor</span>
+            <span class="text-[9px] text-slate-500 font-mono">6</span>
           </button>
         </div>
       </div>
 
       <!-- SECTION 2: TARGET LINKAGE -->
-      <div class="p-3.5 border-b border-white/[0.06] space-y-2.5">
+      <div class="p-3 border-b border-white/[0.06] space-y-2">
         <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex justify-between items-center">
           <span>Curve Linkage</span>
           <span class="text-[9px] text-emerald-400 font-semibold flex items-center space-x-1">
@@ -466,25 +511,25 @@
           </button>
         </div>
 
-        <div class="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.05] text-[11px] text-slate-400 leading-snug">
+        <div class="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.05] text-[10.5px] text-slate-400 leading-snug">
           <span id="target-mode-desc"><b>Linked Feature:</b> Automatically binds the outline ribbon and its color fill so they pull in lockstep with zero gaps.</span>
         </div>
       </div>
 
       <!-- SECTION 3: PULL DYNAMICS -->
-      <div class="p-3.5 border-b border-white/[0.06] space-y-3">
+      <div class="p-3 border-b border-white/[0.06] space-y-2.5">
         <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
           Pull Influence & Elasticity
         </div>
         
         <!-- Radius Slider -->
         <div>
-          <div class="flex justify-between items-center text-xs mb-1.5">
-            <span class="text-slate-400 font-medium">Influence Radius</span>
-            <span id="radius-val" class="font-mono text-sky-400 font-bold bg-sky-500/10 px-1.5 py-0.5 rounded text-[11px]">32px</span>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="text-slate-400 font-medium text-[11px]">Influence Radius</span>
+            <span id="radius-val" class="font-mono text-sky-400 font-bold bg-sky-500/10 px-1.5 py-0.5 rounded text-[10.5px]">32px</span>
           </div>
           <input type="range" id="brush-radius" min="10" max="100" value="32" oninput="updateBrush()" class="cursor-pointer">
-          <div class="grid grid-cols-3 gap-1.5 mt-2">
+          <div class="grid grid-cols-3 gap-1.5 mt-1.5">
             <button onclick="setRadius(18)" class="py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-slate-300 border border-white/[0.06] transition-colors">18px</button>
             <button onclick="setRadius(32)" class="py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-slate-300 border border-white/[0.06] transition-colors">32px</button>
             <button onclick="setRadius(64)" class="py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-slate-300 border border-white/[0.06] transition-colors">64px</button>
@@ -493,16 +538,16 @@
 
         <!-- Strength Slider -->
         <div>
-          <div class="flex justify-between items-center text-xs mb-1.5">
-            <span class="text-slate-400 font-medium">Elastic Strength</span>
-            <span id="strength-val" class="font-mono text-sky-400 font-bold bg-sky-500/10 px-1.5 py-0.5 rounded text-[11px]">45%</span>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <span class="text-slate-400 font-medium text-[11px]">Elastic Strength</span>
+            <span id="strength-val" class="font-mono text-sky-400 font-bold bg-sky-500/10 px-1.5 py-0.5 rounded text-[10.5px]">45%</span>
           </div>
           <input type="range" id="brush-strength" min="10" max="100" value="45" oninput="updateBrush()" class="cursor-pointer">
         </div>
       </div>
 
       <!-- SECTION 4: SMART COLOR PALETTE -->
-      <div class="p-3.5 border-b border-white/[0.06] space-y-2.5">
+      <div class="p-3 border-b border-white/[0.06] space-y-2">
         <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
           Palette Tokens
         </div>
@@ -523,7 +568,7 @@
       </div>
 
       <!-- SECTION 5: SAFETY REVERT -->
-      <div class="p-3.5 mt-auto">
+      <div class="p-3 mt-auto">
         <button onclick="resetToOriginal()" class="w-full px-3 py-2 rounded-xl bg-rose-500/[0.08] hover:bg-rose-500/[0.15] text-rose-300 border border-rose-500/25 text-xs font-semibold flex items-center justify-center space-x-2 transition-all">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
           <span>Revert to Master</span>
@@ -558,7 +603,7 @@
 
             <!-- Browse Button Inside Dropzone -->
             <button type="button" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 group-hover:from-indigo-400 group-hover:to-emerald-300 text-xs font-bold text-white shadow-lg shadow-indigo-500/25 flex items-center space-x-2 transition-transform active:scale-95">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
               <span>Select SVG File</span>
             </button>
 
@@ -566,7 +611,7 @@
             <div class="flex items-center space-x-3 mt-6 pt-5 border-t border-white/[0.08] text-[11px] text-slate-400">
               <span class="flex items-center space-x-1"><span class="text-emerald-400 font-bold">✓</span><span>Pure Vector (.svg)</span></span>
               <span class="flex items-center space-x-1"><span class="text-sky-400 font-bold">✓</span><span>Linked Outlines & Color</span></span>
-              <span class="flex items-center space-x-1"><span class="text-indigo-400 font-bold">✓</span><span>Dual Cards</span></span>
+              <span class="flex items-center space-x-1"><span class="text-purple-400 font-bold">✓</span><span>Object Erase & AI</span></span>
             </div>
 
             <!-- Sample Artwork Quick Links -->
@@ -632,6 +677,88 @@
         </button>
       </div>
 
+      <!-- AI COPILOT DRAWER (POPUP / MODAL) -->
+      <div id="copilot-drawer" class="absolute top-4 right-4 w-96 bg-[#0d111a]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl p-5 shadow-2xl z-50 hidden space-y-4">
+        <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center shadow-md">
+              <span class="text-sm">🤖</span>
+            </div>
+            <div>
+              <span class="text-xs font-extrabold uppercase tracking-wider text-white">AI Difference Copilot</span>
+              <div id="bridge-status-text" class="text-[10px] text-purple-300 flex items-center space-x-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span>In-Browser Heuristic Agent</span>
+              </div>
+            </div>
+          </div>
+          <button onclick="toggleCopilotModal()" class="text-slate-400 hover:text-white text-xs px-2 py-1 rounded-lg hover:bg-white/10">✕</button>
+        </div>
+
+        <!-- 1-CLICK AUTO GENERATOR -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300">1-Click Auto Differences</span>
+            <span class="text-[10px] text-purple-400 font-mono">Autonomous</span>
+          </div>
+
+          <!-- Difference Count Chips -->
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1 font-medium">Differences to Create:</label>
+            <div class="grid grid-cols-4 gap-1.5">
+              <button onclick="setCopilotCount(3, this)" class="copilot-count-btn py-1 rounded-lg text-xs font-bold bg-white/10 text-slate-400 border border-white/10 transition-all">3</button>
+              <button onclick="setCopilotCount(5, this)" class="copilot-count-btn py-1 rounded-lg text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm transition-all">5</button>
+              <button onclick="setCopilotCount(7, this)" class="copilot-count-btn py-1 rounded-lg text-xs font-bold bg-white/10 text-slate-400 border border-white/10 transition-all">7</button>
+              <button onclick="setCopilotCount(10, this)" class="copilot-count-btn py-1 rounded-lg text-xs font-bold bg-white/10 text-slate-400 border border-white/10 transition-all">10</button>
+            </div>
+          </div>
+
+          <!-- Difficulty Chips -->
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1 font-medium">Difficulty Level:</label>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button onclick="setCopilotDifficulty('easy', this)" class="copilot-diff-btn py-1 rounded-lg text-[11px] font-semibold text-slate-400 bg-black/40 border border-white/[0.06] transition-all">Easy</button>
+              <button onclick="setCopilotDifficulty('medium', this)" class="copilot-diff-btn py-1 rounded-lg text-[11px] font-semibold text-purple-300 bg-purple-500/20 border border-purple-500/40 shadow-sm transition-all">Medium</button>
+              <button onclick="setCopilotDifficulty('subtle', this)" class="copilot-diff-btn py-1 rounded-lg text-[11px] font-semibold text-slate-400 bg-black/40 border border-white/[0.06] transition-all">Subtle</button>
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <button onclick="executeCopilotAuto()" id="btn-copilot-auto" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-500 via-indigo-500 to-sky-500 hover:from-purple-400 hover:to-sky-400 text-xs font-bold text-white shadow-lg shadow-purple-500/25 flex items-center justify-center space-x-2 transition-all hover:scale-[1.01] active:scale-[0.99]">
+            <span>✨</span>
+            <span>Auto-Generate Differences Now</span>
+          </button>
+        </div>
+
+        <!-- NATURAL LANGUAGE COMMAND PROMPT -->
+        <div class="pt-3 border-t border-white/[0.08] space-y-2">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-1">
+            <span>💬</span><span>Natural Language Command</span>
+          </span>
+          <div class="flex space-x-1.5">
+            <input type="text" id="copilot-prompt-input" placeholder='e.g. "erase star", "recolor ball to blue", "pull hair"' onkeydown="if(event.key==='Enter') executeCopilotPrompt()" class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-400">
+            <button onclick="executeCopilotPrompt()" class="px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-xs font-bold text-purple-300 border border-purple-500/30 transition-colors">
+              Run
+            </button>
+          </div>
+          <div id="copilot-status-msg" class="text-[10px] text-slate-400 min-h-[16px]">Ready for agent commands.</div>
+        </div>
+
+        <!-- AGENT CLI & MCP CONNECTION SNIPPET -->
+        <div class="pt-3 border-t border-white/[0.08] text-[10px] text-slate-400 space-y-1.5">
+          <div class="flex justify-between items-center text-slate-300 font-semibold">
+            <span>Coding Agent Terminal CLI:</span>
+            <span class="text-[9px] text-emerald-400 font-mono">python studio_cli.py</span>
+          </div>
+          <div class="bg-black/60 p-2 rounded-lg font-mono text-[9px] text-slate-300 overflow-x-auto select-all">
+            python studio_cli.py auto --diffs 5<br>
+            python studio_cli.py pull --x 481 --y 521 --dx 30 --dy 15<br>
+            python studio_cli.py erase --x 300 --y 400
+          </div>
+        </div>
+
+      </div>
+
     </main>
   </div>
 
@@ -661,6 +788,11 @@
     let activeColor = '#efa22c';
     let isHighlightingDiffs = false;
     let isShowingSolution = false;
+
+    // Copilot State
+    let copilotDiffCount = 5;
+    let copilotDifficulty = 'medium';
+    let isAgentConnected = false;
 
     // Export Configuration State
     let exportScale = 1;
@@ -714,6 +846,7 @@
       updateBrush();
       setupDragAndDrop();
       clearToEmptyState();
+      connectAgentBridge();
 
       window.addEventListener('resize', () => {
         if (hasSvgLoaded) fitToScreen();
@@ -730,7 +863,7 @@
       emptyDropzone.style.display = 'flex';
       zoomControls.style.display = 'none';
       document.getElementById('file-name-badge').textContent = 'No SVG Loaded';
-      document.getElementById('file-name-badge').className = 'text-[11px] text-slate-400 font-mono font-medium truncate max-w-[160px]';
+      document.getElementById('file-name-badge').className = 'text-[11px] text-slate-400 font-mono font-medium truncate max-w-[150px]';
       document.getElementById('file-status-dot').className = 'w-1.5 h-1.5 rounded-full bg-slate-500';
       document.getElementById('close-file-btn').style.display = 'none';
       document.getElementById('diff-count-badge').textContent = '0 Diffs';
@@ -739,7 +872,6 @@
       historyStack = [];
       redoStack = [];
 
-      // Reset sample buttons highlighting
       const btnColored = document.getElementById('sample-colored-btn');
       const btnLineart = document.getElementById('sample-lineart-btn');
       if (btnColored) btnColored.className = 'px-2 py-1 rounded text-[11px] font-medium text-slate-400 hover:text-sky-400 transition-colors';
@@ -772,7 +904,6 @@
         loadSvgString(e.target.result, file.name);
       };
       reader.readAsText(file);
-      // Reset input value so re-selecting same file triggers change
       event.target.value = '';
     }
 
@@ -814,7 +945,6 @@
       const svgOrig = layerOrig.querySelector('svg');
 
       if (svgMod) {
-        // Detect dimensions from viewBox first
         const vb = svgMod.getAttribute('viewBox');
         if (vb) {
           const p = vb.trim().split(/[\s,]+/).map(parseFloat);
@@ -829,7 +959,6 @@
           if (svgOrig) svgOrig.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
         }
 
-        // Set 100% width/height so SVG fits container seamlessly
         svgMod.setAttribute('width', '100%');
         svgMod.setAttribute('height', '100%');
         if (svgOrig) {
@@ -846,16 +975,14 @@
       masterSvgData = clean;
       hasSvgLoaded = true;
 
-      // Reveal Artboard & Hide Dropzone
       emptyDropzone.style.display = 'none';
       zoomControls.style.display = 'flex';
       layerMod.style.display = 'block';
       layerOrig.style.display = 'none';
 
-      // Update Header File Info
       const nameBadge = document.getElementById('file-name-badge');
       nameBadge.textContent = fileName;
-      nameBadge.className = 'text-[11px] text-slate-200 font-mono font-medium truncate max-w-[160px]';
+      nameBadge.className = 'text-[11px] text-slate-200 font-mono font-medium truncate max-w-[150px]';
       document.getElementById('file-status-dot').className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot';
       document.getElementById('close-file-btn').style.display = 'inline-flex';
 
@@ -865,6 +992,7 @@
       setTimeout(fitToScreen, 60);
       countDiffs();
       setViewMode('mod');
+      reportStateToBridge();
     }
 
     function setViewMode(mode) {
@@ -916,7 +1044,6 @@
       const availW = vpRect.width || (window.innerWidth - 265);
       const availH = vpRect.height || (window.innerHeight - 52);
 
-      // 48px comfortable margin
       const margin = 48;
       const targetW = availW - (margin * 2);
       const targetH = availH - (margin * 2);
@@ -942,7 +1069,6 @@
       updateBrushRingSize();
     }
 
-    // Silky Smooth Pan Interpolation Loop
     function startSmoothPan() {
       if (isSmoothPanning) return;
       isSmoothPanning = true;
@@ -994,12 +1120,24 @@
 
     function setTool(tool) {
       activeTool = tool;
-      document.querySelectorAll('.tool-card').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tool-card').forEach(btn => {
+        btn.classList.remove('active');
+        btn.classList.remove('active-rose');
+      });
       const activeBtn = document.getElementById('tool-' + tool);
-      if (activeBtn) activeBtn.classList.add('active');
+      if (activeBtn) {
+        if (tool === 'erase') {
+          activeBtn.classList.add('active-rose');
+        } else {
+          activeBtn.classList.add('active');
+        }
+      }
 
       if (tool === 'pan' || !hasSvgLoaded) {
         viewport.style.cursor = tool === 'pan' ? 'grab' : 'default';
+        brushRing.style.display = 'none';
+      } else if (tool === 'erase') {
+        viewport.style.cursor = 'not-allowed';
         brushRing.style.display = 'none';
       } else {
         viewport.style.cursor = 'crosshair';
@@ -1023,7 +1161,7 @@
     }
 
     function updateBrushRingSize() {
-      if (!hasSvgLoaded) {
+      if (!hasSvgLoaded || activeTool === 'erase') {
         brushRing.style.display = 'none';
         return;
       }
@@ -1039,7 +1177,6 @@
       setTool('fill');
     }
 
-    // Precise Coordinate Conversion (Viewport to SVG Space)
     function screenToSVG(screenX, screenY) {
       const vpRect = viewport.getBoundingClientRect();
       const vx = screenX - vpRect.left;
@@ -1047,6 +1184,12 @@
       const svgX = (vx - panX) / zoomLevel;
       const svgY = (vy - panY) / zoomLevel;
       return [svgX, svgY];
+    }
+
+    function svgToScreen(svgX, svgY) {
+      const vx = panX + svgX * zoomLevel;
+      const vy = panY + svgY * zoomLevel;
+      return [vx, vy];
     }
 
     function pushHistory() {
@@ -1057,6 +1200,7 @@
       if (historyStack.length > 50) historyStack.shift();
       redoStack = [];
       countDiffs();
+      reportStateToBridge();
     }
 
     function undo() {
@@ -1068,6 +1212,7 @@
       if (svg) {
         svg.innerHTML = prev;
         countDiffs();
+        reportStateToBridge();
       }
     }
 
@@ -1079,6 +1224,7 @@
       if (svg) {
         svg.innerHTML = next;
         countDiffs();
+        reportStateToBridge();
       }
     }
 
@@ -1097,6 +1243,18 @@
       countDiffs();
     }
 
+    function triggerActionPing(svgX, svgY) {
+      try {
+        const [vx, vy] = svgToScreen(svgX, svgY);
+        const ping = document.createElement('div');
+        ping.className = 'agent-action-ping';
+        ping.style.left = (vx - 20) + 'px';
+        ping.style.top = (vy - 20) + 'px';
+        viewport.appendChild(ping);
+        setTimeout(() => ping.remove(), 900);
+      } catch(e) {}
+    }
+
     // POINT-BASED LINKED PULL ALGORITHM
     function getLinkedPaths(clickSvgX, clickSvgY, clientX, clientY) {
       const svg = layerMod.querySelector('svg');
@@ -1107,11 +1265,12 @@
         return allPaths;
       }
 
-      // STRICT MODE: Find clicked element AND any touching outline / color fill
       let linked = [];
-      const clickedEl = document.elementFromPoint(clientX, clientY);
-      if (clickedEl && clickedEl.tagName.toLowerCase() === 'path') {
-        linked.push(clickedEl);
+      if (clientX !== undefined && clientY !== undefined) {
+        const clickedEl = document.elementFromPoint(clientX, clientY);
+        if (clickedEl && clickedEl.tagName.toLowerCase() === 'path') {
+          linked.push(clickedEl);
+        }
       }
 
       const searchRadius = Math.max(16, brushRadius * 0.65);
@@ -1149,7 +1308,6 @@
       return false;
     }
 
-    // Apply Elastic Displacement Vector (shiftX, shiftY) from Anchor (anchorX, anchorY)
     function applyLinkedPull(snapshot, anchorX, anchorY, shiftX, shiftY, radius, strength) {
       const tokens = snapshot.tokens;
       const sigma = radius / 2.2;
@@ -1192,7 +1350,6 @@
       }
     }
 
-    // Discrete Deformation for Thicken, Thin, Nudge
     function deformPathDiscrete(pathEl, centerSvgX, centerSvgY, shiftX, shiftY, radius, strength, mode) {
       const d = pathEl.getAttribute('d');
       if (!d) return false;
@@ -1226,7 +1383,7 @@
             if (mode === 'thicken') {
               x += dx * 0.35 * weight;
               y += dy * 0.35 * weight;
-            } else if (mode === 'thin') {
+            } else if (mode === 'thin' || mode === 'contract') {
               x -= dx * 0.25 * weight;
               y -= dy * 0.25 * weight;
             } else if (mode === 'gap') {
@@ -1246,7 +1403,7 @@
     }
 
     function countDiffs() {
-      if (!hasSvgLoaded) return;
+      if (!hasSvgLoaded) return 0;
       const origPaths = layerOrig.querySelectorAll('path');
       const modPaths = layerMod.querySelectorAll('path');
       let diffCount = 0;
@@ -1256,13 +1413,16 @@
         const dMod = modPaths[i].getAttribute('d');
         const fOrig = origPaths[i].getAttribute('fill');
         const fMod = modPaths[i].getAttribute('fill');
-        if (dOrig !== dMod || fOrig !== fMod) {
+        const isErased = (modPaths[i].style.display === 'none' || modPaths[i].getAttribute('display') === 'none');
+
+        if (dOrig !== dMod || fOrig !== fMod || isErased) {
           diffCount++;
         }
       }
 
       const badge = document.getElementById('diff-count-badge');
       badge.textContent = `${diffCount} Diff${diffCount === 1 ? '' : 's'}`;
+      return diffCount;
     }
 
     function toggleDiffHighlight() {
@@ -1276,8 +1436,9 @@
         const dMod = modPaths[i].getAttribute('d');
         const fOrig = origPaths[i].getAttribute('fill');
         const fMod = modPaths[i].getAttribute('fill');
+        const isErased = (modPaths[i].style.display === 'none' || modPaths[i].getAttribute('display') === 'none');
 
-        if (dOrig !== dMod || fOrig !== fMod) {
+        if (dOrig !== dMod || fOrig !== fMod || isErased) {
           if (isHighlightingDiffs) {
             modPaths[i].classList.add('path-diff-glow');
           } else {
@@ -1312,10 +1473,13 @@
         const dMod = modPaths[i].getAttribute('d');
         const fOrig = origPaths[i].getAttribute('fill');
         const fMod = modPaths[i].getAttribute('fill');
+        const isErased = (modPaths[i].style.display === 'none' || modPaths[i].getAttribute('display') === 'none');
 
-        if (dOrig !== dMod || fOrig !== fMod) {
+        if (dOrig !== dMod || fOrig !== fMod || isErased) {
           try {
-            const bbox = modPaths[i].getBBox();
+            // If erased in puzzle, take bbox from original baseline!
+            const targetEl = isErased ? origPaths[i] : modPaths[i];
+            const bbox = targetEl.getBBox();
             const cx = bbox.x + bbox.width / 2;
             const cy = bbox.y + bbox.height / 2;
             const r = Math.max(bbox.width, bbox.height) / 2 + 10;
@@ -1341,10 +1505,11 @@
       const vx = e.clientX - vpRect.left;
       const vy = e.clientY - vpRect.top;
 
-      brushRing.style.left = vx + 'px';
-      brushRing.style.top = vy + 'px';
+      if (activeTool !== 'erase') {
+        brushRing.style.left = vx + 'px';
+        brushRing.style.top = vy + 'px';
+      }
 
-      // 1. Pan Action
       if (isPanning) {
         const moveX = e.clientX - panStartX;
         const moveY = e.clientY - panStartY;
@@ -1358,14 +1523,12 @@
         return;
       }
 
-      // 2. Linked Point Pull Action
       if (isPulling && activeTool === 'pull') {
         const currentSvgX = (vx - panX) / zoomLevel;
         const currentSvgY = (vy - panY) / zoomLevel;
         const shiftX = currentSvgX - anchorSvgX;
         const shiftY = currentSvgY - anchorSvgY;
 
-        // Update Visual Pull Rubber-Band Line & Guide Pins
         pullGuideLine.setAttribute('x1', anchorScreenX);
         pullGuideLine.setAttribute('y1', anchorScreenY);
         pullGuideLine.setAttribute('x2', vx);
@@ -1374,7 +1537,6 @@
         pullTipCircle.setAttribute('cx', vx);
         pullTipCircle.setAttribute('cy', vy);
 
-        // Apply Linked Deformation to all shared paths (outline + colors)
         linkedPathSnapshots.forEach(snap => {
           applyLinkedPull(snap, anchorSvgX, anchorSvgY, shiftX, shiftY, brushRadius, brushStrength);
         });
@@ -1382,7 +1544,9 @@
     });
 
     viewport.addEventListener('mouseenter', () => {
-      if (hasSvgLoaded && activeTool !== 'pan') brushRing.style.display = 'block';
+      if (hasSvgLoaded && activeTool !== 'pan' && activeTool !== 'erase') {
+        brushRing.style.display = 'block';
+      }
     });
 
     viewport.addEventListener('mouseleave', () => {
@@ -1418,6 +1582,39 @@
       const vy = e.clientY - vpRect.top;
       const [svgX, svgY] = screenToSVG(e.clientX, e.clientY);
 
+      // TOOL: OBJECT ERASE
+      if (activeTool === 'erase') {
+        const clickedEl = document.elementFromPoint(e.clientX, e.clientY);
+        if (clickedEl && clickedEl.tagName.toLowerCase() === 'path') {
+          try {
+            const bbox = clickedEl.getBBox();
+            // Don't erase the entire canvas background
+            if (bbox.width > svgWidth * 0.88 && bbox.height > svgHeight * 0.88) {
+              return;
+            }
+
+            clickedEl.style.display = 'none';
+            clickedEl.setAttribute('display', 'none');
+
+            // If it's a small detail, also hide touching sister outline paths
+            if (targetMode === 'strict' && bbox.width < 140 && bbox.height < 140) {
+              const sisterPaths = getLinkedPaths(svgX, svgY, e.clientX, e.clientY);
+              sisterPaths.forEach(sp => {
+                const sb = sp.getBBox();
+                if (sb.width < 160 && sb.height < 160) {
+                  sp.style.display = 'none';
+                  sp.setAttribute('display', 'none');
+                }
+              });
+            }
+
+            triggerActionPing(svgX, svgY);
+            pushHistory();
+          } catch(e) {}
+        }
+        return;
+      }
+
       // TOOL: LINKED POINT PULL
       if (activeTool === 'pull') {
         isPulling = true;
@@ -1426,14 +1623,12 @@
         anchorScreenX = vx;
         anchorScreenY = vy;
 
-        // Find outline and adjacent fill paths linked at this point
         const linkedEls = getLinkedPaths(svgX, svgY, e.clientX, e.clientY);
         linkedPathSnapshots = linkedEls.map(el => ({
           el: el,
           tokens: el.getAttribute('d').match(/([a-df-z]|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/gi) || []
         }));
 
-        // Render Interactive Pull Guide
         pullAnchorCircle.setAttribute('cx', vx);
         pullAnchorCircle.setAttribute('cy', vy);
         pullAnchorCircle.style.display = 'block';
@@ -1491,7 +1686,7 @@
     window.addEventListener('mouseup', () => {
       if (isPanning) {
         isPanning = false;
-        viewport.style.cursor = activeTool === 'pan' ? 'grab' : 'crosshair';
+        viewport.style.cursor = activeTool === 'pan' ? 'grab' : (activeTool === 'erase' ? 'not-allowed' : 'crosshair');
       }
       if (isPulling) {
         isPulling = false;
@@ -1507,7 +1702,7 @@
       pullTipCircle.style.display = 'none';
     }
 
-    // 2-Finger Trackpad Pan & Pinch Zoom (Gentle, Silky Smooth)
+    // 2-Finger Trackpad Pan & Pinch Zoom
     viewport.addEventListener('wheel', (e) => {
       if (!hasSvgLoaded) return;
       e.preventDefault();
@@ -1572,6 +1767,8 @@
         setTool('gap');
       } else if (e.key === '6') {
         setTool('fill');
+      } else if (e.key === '7' || e.key === 'e' || e.key === 'E') {
+        setTool('erase');
       } else if (e.key === '0' || e.key === 'f' || e.key === 'F') {
         fitToScreen();
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
@@ -1588,6 +1785,126 @@
         setViewMode('mod');
       }
     });
+
+    // COPILOT DRAWER SYSTEM
+    function toggleCopilotModal() {
+      const drawer = document.getElementById('copilot-drawer');
+      drawer.classList.toggle('hidden');
+    }
+
+    function setCopilotCount(n, btn) {
+      copilotDiffCount = n;
+      document.querySelectorAll('.copilot-count-btn').forEach(b => {
+        b.className = 'copilot-count-btn py-1 rounded-lg text-xs font-bold bg-white/10 text-slate-400 border border-white/10 transition-all';
+      });
+      btn.className = 'copilot-count-btn py-1 rounded-lg text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm transition-all';
+    }
+
+    function setCopilotDifficulty(diff, btn) {
+      copilotDifficulty = diff;
+      document.querySelectorAll('.copilot-diff-btn').forEach(b => {
+        b.className = 'copilot-diff-btn py-1 rounded-lg text-[11px] font-semibold text-slate-400 bg-black/40 border border-white/[0.06] transition-all';
+      });
+      btn.className = 'copilot-diff-btn py-1 rounded-lg text-[11px] font-semibold text-purple-300 bg-purple-500/20 border border-purple-500/40 shadow-sm transition-all';
+    }
+
+    function executeCopilotAuto() {
+      if (!hasSvgLoaded) {
+        alert('Please load an SVG illustration first!');
+        return;
+      }
+      const res = window.editorAPI.autoGenerateDiffs(copilotDiffCount, copilotDifficulty);
+      const msg = document.getElementById('copilot-status-msg');
+      if (res && res.status === 'success') {
+        msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Generated ${res.diffsGenerated} subtle differences autonomously!</span>`;
+      }
+    }
+
+    function executeCopilotPrompt() {
+      if (!hasSvgLoaded) {
+        alert('Please load an SVG illustration first!');
+        return;
+      }
+      const input = document.getElementById('copilot-prompt-input');
+      const query = input.value.trim().toLowerCase();
+      if (!query) return;
+
+      const msg = document.getElementById('copilot-status-msg');
+      msg.textContent = 'Processing agent instruction…';
+
+      if (query.includes('erase') || query.includes('delete') || query.includes('remove')) {
+        // Find smallest candidate path (e.g. star, speck, accessory)
+        const paths = Array.from(layerMod.querySelectorAll('path')).filter(p => {
+          try {
+            const b = p.getBBox();
+            return b.width > 8 && b.width < 120 && b.height > 8 && b.height < 120 && p.style.display !== 'none';
+          } catch(e) { return false; }
+        });
+        if (paths.length > 0) {
+          const target = paths[Math.floor(Math.random() * paths.length)];
+          const b = target.getBBox();
+          window.editorAPI.erase(b.x + b.width / 2, b.y + b.height / 2);
+          msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Erased detail object cleanly!</span>`;
+        }
+      }
+      else if (query.includes('recolor') || query.includes('color') || query.includes('paint')) {
+        let targetColor = '#3b82f6';
+        if (query.includes('red')) targetColor = '#ef4444';
+        else if (query.includes('green')) targetColor = '#10b981';
+        else if (query.includes('purple')) targetColor = '#8b5cf6';
+        else if (query.includes('yellow') || query.includes('gold')) targetColor = '#eab308';
+        else if (query.includes('pink')) targetColor = '#ec4899';
+        else if (query.includes('orange')) targetColor = '#f97316';
+        else if (query.includes('white')) targetColor = '#ffffff';
+
+        const paths = Array.from(layerMod.querySelectorAll('path')).filter(p => {
+          const f = p.getAttribute('fill') || '';
+          return f && f !== '#000000' && f !== 'black' && f !== 'none' && p.style.display !== 'none';
+        });
+
+        if (paths.length > 0) {
+          const targetPath = paths[Math.floor(paths.length / 2)];
+          targetPath.setAttribute('fill', targetColor);
+          pushHistory();
+          msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Recolored shape to ${targetColor}</span>`;
+        }
+      }
+      else if (query.includes('pull') || query.includes('curve') || query.includes('warp')) {
+        const paths = Array.from(layerMod.querySelectorAll('path'));
+        let anchor = null;
+        for (let p of paths) {
+          const d = p.getAttribute('d') || '';
+          const m = d.match(/([0-9]+\.?[0-9]*)\s+([0-9]+\.?[0-9]*)/);
+          if (m) {
+            const x = parseFloat(m[1]);
+            const y = parseFloat(m[2]);
+            if (x > 200 && x < svgWidth - 200 && y > 200 && y < svgHeight - 200) {
+              anchor = { x, y };
+              break;
+            }
+          }
+        }
+        if (anchor) {
+          window.editorAPI.pull(anchor.x, anchor.y, 25, 12, 32, 45);
+          msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Pulled linked curve at (${anchor.x.toFixed(0)}, ${anchor.y.toFixed(0)})</span>`;
+        }
+      }
+      else if (query.includes('diff') || query.includes('generate') || query.includes('create')) {
+        const numMatch = query.match(/\d+/);
+        const count = numMatch ? parseInt(numMatch[0], 10) : 5;
+        window.editorAPI.autoGenerateDiffs(count, 'medium');
+        msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Generated ${count} differences!</span>`;
+      }
+      else if (query.includes('undo')) {
+        undo();
+        msg.textContent = 'Undid last change.';
+      }
+      else {
+        window.editorAPI.autoGenerateDiffs(1, 'medium');
+        msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Applied subtle difference based on prompt!</span>`;
+      }
+      input.value = '';
+    }
 
     // EXPORT DROPDOWN SYSTEM
     function toggleExportMenu() {
@@ -1720,14 +2037,12 @@
       canvas.height = cardH;
       const ctx = canvas.getContext('2d');
 
-      // Modern Gradient Background
       const bgGrad = ctx.createLinearGradient(0, 0, 0, cardH);
       bgGrad.addColorStop(0, '#0f172a');
       bgGrad.addColorStop(1, '#020617');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, cardW, cardH);
 
-      // Card Title
       ctx.fillStyle = '#ffffff';
       ctx.font = `bold ${Math.round(54 * scaleFactor)}px "Plus Jakarta Sans", sans-serif`;
       ctx.textAlign = 'center';
@@ -1737,7 +2052,6 @@
       ctx.font = `${Math.round(26 * scaleFactor)}px "Plus Jakarta Sans", sans-serif`;
       ctx.fillText(isSolution ? 'All differences circled and indexed below' : 'Can you find all the differences between the two panels?', cardW / 2, 135 * scaleFactor);
 
-      // Render Panes
       const paneW = 1050 * scaleFactor;
       const paneH = 1050 * scaleFactor;
       const topY = 180 * scaleFactor;
@@ -1754,20 +2068,17 @@
       imgOrig.onload = () => {
         imgMod.src = URL.createObjectURL(blobMod);
         imgMod.onload = () => {
-          // Left Paper Artboard
           ctx.fillStyle = '#ffffff';
           ctx.beginPath();
           ctx.roundRect(leftX1, topY, paneW, paneH, 20 * scaleFactor);
           ctx.fill();
           ctx.drawImage(imgOrig, leftX1, topY, paneW, paneH);
 
-          // Right Paper Artboard
           ctx.beginPath();
           ctx.roundRect(leftX2, topY, paneW, paneH, 20 * scaleFactor);
           ctx.fill();
           ctx.drawImage(imgMod, leftX2, topY, paneW, paneH);
 
-          // Panel Labels
           ctx.fillStyle = '#38bdf8';
           ctx.font = `bold ${Math.round(32 * scaleFactor)}px "Plus Jakarta Sans", sans-serif`;
           ctx.textAlign = 'center';
@@ -1776,7 +2087,6 @@
           ctx.fillStyle = '#f43f5e';
           ctx.fillText(isSolution ? 'Solution View' : 'Find Differences Here!', leftX2 + paneW / 2, topY + paneH + 45 * scaleFactor);
 
-          // Download link
           const fmt = document.getElementById('export-format').value;
           const mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
           const pngUrl = canvas.toDataURL(mime, exportQuality);
@@ -1787,6 +2097,346 @@
         };
       };
     }
+
+    // ==========================================
+    // AGENT BRIDGE & WINDOW.EDITORAPI
+    // ==========================================
+
+    function connectAgentBridge() {
+      try {
+        const evtSource = new EventSource('/api/agent-events');
+        
+        evtSource.onopen = () => {
+          isAgentConnected = true;
+          const dot = document.getElementById('agent-bridge-dot');
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400 pulse-dot';
+          const statusText = document.getElementById('bridge-status-text');
+          if (statusText) statusText.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>Connected to Python Bridge (8080)</span>';
+          reportStateToBridge();
+        };
+
+        evtSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'handshake') return;
+            handleAgentAction(data);
+          } catch(e) {}
+        };
+
+        evtSource.onerror = () => {
+          isAgentConnected = false;
+          const dot = document.getElementById('agent-bridge-dot');
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-purple-400 pulse-dot';
+          const statusText = document.getElementById('bridge-status-text');
+          if (statusText) statusText.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span><span>In-Browser Heuristic Agent</span>';
+        };
+      } catch(e) {}
+    }
+
+    function reportStateToBridge(actionId = null) {
+      if (!isAgentConnected) return;
+      try {
+        const state = window.editorAPI.getState();
+        if (actionId) state.actionId = actionId;
+        fetch('/api/report-state', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(state)
+        }).catch(() => {});
+      } catch(e) {}
+    }
+
+    function handleAgentAction(cmd) {
+      const { actionId, action, params } = cmd;
+      let result = null;
+
+      if (action === 'loadSvg') {
+        window.editorAPI.loadSvg(params.svg, params.fileName);
+        result = { success: true };
+      } else if (action === 'pull') {
+        result = window.editorAPI.pull(params.x, params.y, params.dx, params.dy, params.radius, params.strength);
+      } else if (action === 'erase') {
+        result = window.editorAPI.erase(params.x, params.y, params.index);
+      } else if (action === 'recolor') {
+        result = window.editorAPI.recolor(params.x, params.y, params.color, params.index);
+      } else if (action === 'thicken') {
+        result = window.editorAPI.thicken(params.x, params.y, params.radius, params.strength);
+      } else if (action === 'contract') {
+        result = window.editorAPI.contract(params.x, params.y, params.radius, params.strength);
+      } else if (action === 'gap') {
+        result = window.editorAPI.nudgeGap(params.x, params.y, params.shift, 0, params.radius);
+      } else if (action === 'autoGenerateDiffs') {
+        result = window.editorAPI.autoGenerateDiffs(params.count, params.difficulty);
+      } else if (action === 'undo') {
+        undo();
+        result = { success: true };
+      } else if (action === 'redo') {
+        redo();
+        result = { success: true };
+      } else if (action === 'reset') {
+        resetToOriginal();
+        result = { success: true };
+      }
+
+      reportStateToBridge(actionId);
+    }
+
+    // Comprehensive Global Programming API
+    window.editorAPI = {
+      loadSvg: function(svgString, fileName = 'Uploaded_Artwork.svg') {
+        loadSvgString(svgString, fileName);
+        return { success: true, fileName };
+      },
+      clear: function() {
+        clearToEmptyState();
+        return { success: true };
+      },
+
+      // Object Erase
+      erase: function(x, y, index = null) {
+        if (!hasSvgLoaded) return { error: "No SVG loaded" };
+        const svg = layerMod.querySelector('svg');
+        if (!svg) return { error: "No SVG" };
+        const paths = Array.from(svg.querySelectorAll('path'));
+
+        let target = null;
+        if (index !== null && index >= 0 && index < paths.length) {
+          target = paths[index];
+        } else if (x !== undefined && y !== undefined) {
+          for (let p of paths) {
+            const d = p.getAttribute('d');
+            if (d && hasNearbyPoint(d, x, y, 25)) {
+              target = p;
+              break;
+            }
+          }
+        }
+
+        if (!target) return { error: "Target object not found" };
+        target.style.display = 'none';
+        target.setAttribute('display', 'none');
+
+        // Hide sister outline if small
+        try {
+          const b = target.getBBox();
+          if (b.width < 140 && b.height < 140 && x !== undefined && y !== undefined) {
+            const sisters = getLinkedPaths(x, y);
+            sisters.forEach(sp => {
+              if (sp.getBBox().width < 160) {
+                sp.style.display = 'none';
+                sp.setAttribute('display', 'none');
+              }
+            });
+          }
+        } catch(e) {}
+
+        if (x !== undefined && y !== undefined) triggerActionPing(x, y);
+        pushHistory();
+        return { success: true, erased: true, totalDiffs: countDiffs() };
+      },
+
+      pull: function(anchorX, anchorY, shiftX, shiftY, radius = 32, strength = 45) {
+        if (!hasSvgLoaded) return { error: "No SVG loaded" };
+        const linkedEls = getLinkedPaths(anchorX, anchorY);
+        if (linkedEls.length === 0) return { error: "No paths near coordinates" };
+
+        const snapshots = linkedEls.map(el => ({
+          el: el,
+          tokens: el.getAttribute('d').match(/([a-df-z]|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/gi) || []
+        }));
+
+        snapshots.forEach(snap => {
+          applyLinkedPull(snap, anchorX, anchorY, shiftX, shiftY, radius, strength);
+        });
+
+        triggerActionPing(anchorX, anchorY);
+        pushHistory();
+        return { success: true, modifiedPaths: snapshots.length, totalDiffs: countDiffs() };
+      },
+
+      recolor: function(x, y, colorHex, index = null) {
+        if (!hasSvgLoaded) return { error: "No SVG loaded" };
+        const svg = layerMod.querySelector('svg');
+        if (!svg) return { error: "No SVG element" };
+        const paths = Array.from(svg.querySelectorAll('path'));
+
+        let target = null;
+        if (index !== null && index >= 0 && index < paths.length) {
+          target = paths[index];
+        } else if (x !== undefined && y !== undefined) {
+          for (let p of paths) {
+            const d = p.getAttribute('d');
+            if (d && hasNearbyPoint(d, x, y, 20)) {
+              target = p;
+              break;
+            }
+          }
+        }
+
+        if (!target) return { error: "Target shape not found" };
+        target.setAttribute('fill', colorHex);
+        if (x !== undefined && y !== undefined) triggerActionPing(x, y);
+        pushHistory();
+        return { success: true, newColor: colorHex, totalDiffs: countDiffs() };
+      },
+
+      thicken: function(x, y, radius = 32, strength = 45) {
+        if (!hasSvgLoaded) return { error: "No SVG loaded" };
+        const paths = getLinkedPaths(x, y);
+        let any = false;
+        paths.forEach(p => {
+          if (deformPathDiscrete(p, x, y, 0, 0, radius, strength, 'thicken')) any = true;
+        });
+        if (any) {
+          triggerActionPing(x, y);
+          pushHistory();
+        }
+        return { success: any, totalDiffs: countDiffs() };
+      },
+
+      contract: function(x, y, radius = 32, strength = 45) {
+        if (!hasSvgLoaded) return { error: "No SVG loaded" };
+        const paths = getLinkedPaths(x, y);
+        let any = false;
+        paths.forEach(p => {
+          if (deformPathDiscrete(p, x, y, 0, 0, radius, strength, 'contract')) any = true;
+        });
+        if (any) {
+          triggerActionPing(x, y);
+          pushHistory();
+        }
+        return { success: any, totalDiffs: countDiffs() };
+      },
+
+      nudgeGap: function(x, y, shiftX = 18, shiftY = 0, radius = 32) {
+        if (!hasSvgLoaded) return { error: "No SVG loaded" };
+        const paths = getLinkedPaths(x, y);
+        let any = false;
+        paths.forEach(p => {
+          if (deformPathDiscrete(p, x, y, shiftX, shiftY, radius, 50, 'gap')) any = true;
+        });
+        if (any) {
+          triggerActionPing(x, y);
+          pushHistory();
+        }
+        return { success: any, totalDiffs: countDiffs() };
+      },
+
+      autoGenerateDiffs: function(count = 5, difficulty = 'medium') {
+        if (!hasSvgLoaded) return { error: "No SVG loaded" };
+        const svg = layerMod.querySelector('svg');
+        if (!svg) return { error: "No SVG" };
+
+        const allPaths = Array.from(svg.querySelectorAll('path'));
+        if (allPaths.length < 5) return { error: "Not enough paths" };
+
+        const candidates = [];
+        allPaths.forEach((p, idx) => {
+          try {
+            const bbox = p.getBBox();
+            const fill = (p.getAttribute('fill') || '').toLowerCase();
+            if (bbox.width > 12 && bbox.height > 12 && bbox.width < svgWidth * 0.75 && bbox.height < svgHeight * 0.75) {
+              candidates.push({ p, idx, bbox, fill });
+            }
+          } catch(e) {}
+        });
+
+        if (candidates.length === 0) return { error: "No eligible candidates" };
+
+        const shuffled = candidates.sort(() => 0.5 - Math.random());
+        const targetDiffs = Math.min(count, shuffled.length);
+        let created = 0;
+        const PALETTE = ['#efa22c', '#e53e3e', '#3182ce', '#38a169', '#805ad5', '#d69e2e', '#ffffff'];
+
+        for (let i = 0; i < targetDiffs; i++) {
+          const c = shuffled[i];
+          const cx = c.bbox.x + c.bbox.width / 2;
+          const cy = c.bbox.y + c.bbox.height / 2;
+
+          // Strategy 1: Erase small accessory (at least one in a set)
+          if (i === 1 && c.bbox.width < 80 && c.bbox.height < 80) {
+            c.p.style.display = 'none';
+            c.p.setAttribute('display', 'none');
+            triggerActionPing(cx, cy);
+            created++;
+          }
+          // Strategy 2: Color Shift
+          else if (c.fill && c.fill !== '#000000' && c.fill !== 'black' && i % 2 === 0) {
+            const newColor = PALETTE.find(col => col.toLowerCase() !== c.fill) || '#38a169';
+            c.p.setAttribute('fill', newColor);
+            triggerActionPing(cx, cy);
+            created++;
+          }
+          // Strategy 3: Linked Point Pull on contour
+          else {
+            const shiftDist = difficulty === 'subtle' ? 14 : (difficulty === 'medium' ? 22 : 35);
+            const shiftX = (Math.random() > 0.5 ? 1 : -1) * shiftDist;
+            const shiftY = (Math.random() > 0.5 ? 1 : -1) * (shiftDist * 0.6);
+            const snap = {
+              el: c.p,
+              tokens: c.p.getAttribute('d').match(/([a-df-z]|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/gi) || []
+            };
+            applyLinkedPull(snap, cx, cy, shiftX, shiftY, 32, 50);
+            triggerActionPing(cx, cy);
+            created++;
+          }
+        }
+
+        pushHistory();
+        return {
+          status: "success",
+          diffsGenerated: created,
+          totalDiffs: countDiffs()
+        };
+      },
+
+      getState: function() {
+        return {
+          connected: true,
+          hasSvgLoaded: hasSvgLoaded,
+          fileName: document.getElementById('file-name-badge').textContent,
+          diffCount: countDiffs(),
+          dimensions: { width: svgWidth, height: svgHeight },
+          zoomLevel: zoomLevel,
+          targetMode: targetMode
+        };
+      },
+
+      getDiffs: function() {
+        const origPaths = layerOrig.querySelectorAll('path');
+        const modPaths = layerMod.querySelectorAll('path');
+        let diffs = [];
+
+        for (let i = 0; i < Math.min(origPaths.length, modPaths.length); i++) {
+          const dOrig = origPaths[i].getAttribute('d');
+          const dMod = modPaths[i].getAttribute('d');
+          const fOrig = origPaths[i].getAttribute('fill');
+          const fMod = modPaths[i].getAttribute('fill');
+          const isErased = (modPaths[i].style.display === 'none' || modPaths[i].getAttribute('display') === 'none');
+
+          if (dOrig !== dMod || fOrig !== fMod || isErased) {
+            let bbox = { x: 0, y: 0, width: 0, height: 0 };
+            try { 
+              const targetEl = isErased ? origPaths[i] : modPaths[i];
+              bbox = targetEl.getBBox(); 
+            } catch(e) {}
+            diffs.push({
+              index: i,
+              type: isErased ? "object_erased" : (dOrig !== dMod ? "contour_deformed" : "color_shifted"),
+              fillOrig: fOrig,
+              fillMod: fMod,
+              bbox: { x: Math.round(bbox.x), y: Math.round(bbox.y), w: Math.round(bbox.width), h: Math.round(bbox.height) }
+            });
+          }
+        }
+        return { count: diffs.length, diffs };
+      },
+
+      undo: undo,
+      redo: redo,
+      reset: resetToOriginal,
+      fitToScreen: fitToScreen
+    };
 
     // Startup
     window.addEventListener('DOMContentLoaded', initStudio);
