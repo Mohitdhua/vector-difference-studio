@@ -6,6 +6,7 @@ import queue
 import time
 import urllib.parse
 import threading
+import xml.etree.ElementTree as ET
 
 PORT = 8080
 DIRECTORY = r'F:\svg puzzle'
@@ -20,6 +21,7 @@ current_client_state = {
     "diffCount": 0,
     "dimensions": {"width": 1000, "height": 1000},
     "diffs": [],
+    "elements": [],
     "lastUpdated": 0
 }
 
@@ -27,21 +29,62 @@ current_client_state = {
 pending_results = {}
 result_lock = threading.Lock()
 
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+def parse_svg_elements(svg_path):
+    """Parse SVG into elements for external agents and CLI."""
+    if not os.path.exists(svg_path):
+        return []
+    try:
+        tree = ET.parse(svg_path)
+        root = tree.getroot()
+        elements = []
+        idx = 0
+        for el in root.iter():
+            tag = el.tag.split('}')[-1]
+            if tag in ['path', 'circle', 'rect', 'ellipse']:
+                fill = el.attrib.get('fill', 'none')
+                stroke = el.attrib.get('stroke', 'none')
+                d = el.attrib.get('d', '')
+                elements.append({
+                    "index": idx,
+                    "tag": tag,
+                    "fill": fill,
+                    "stroke": stroke,
+                    "d_length": len(d)
+                })
+                idx += 1
+        return elements
+    except Exception as e:
+        print(f"Error parsing SVG elements: {e}")
+        return []
+
 class AgentBridgeHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=DIRECTORY, **kwargs)
 
     def log_message(self, format, *args):
         # Quiet logging for SSE and polling to avoid console spam
-        if '/api/agent-events' in args[0] or '/api/state' in args[0]:
+        if args and any(p in args[0] for p in ['/api/agent-events', '/api/state', '/api/health']):
             return
         super().log_message(format, *args)
 
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)
         
+        # 0. Healthcheck
+        if url.path == '/api/health':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(b'{"status": "healthy", "service": "Vector Difference Studio Agent Bridge"}')
+            return
+
         # 1. Server-Sent Events (SSE) Stream for Browser
-        if url.path == '/api/agent-events':
+        elif url.path == '/api/agent-events':
             self.send_response(200)
             self.send_header('Content-Type', 'text/event-stream')
             self.send_header('Cache-Control', 'no-cache')
@@ -52,24 +95,24 @@ class AgentBridgeHandler(http.server.SimpleHTTPRequestHandler):
             with state_lock:
                 current_client_state["connected"] = True
 
-            # Send initial handshake
             init_msg = json.dumps({"type": "handshake", "message": "Agent Bridge Connected"})
-            self.wfile.write(f"data: {init_msg}\n\n".encode('utf-8'))
-            self.wfile.flush()
+            try:
+                self.wfile.write(f"data: {init_msg}\n\n".encode('utf-8'))
+                self.wfile.flush()
+            except Exception:
+                return
 
             try:
                 while True:
                     try:
-                        # Wait for agent commands with a 2-second timeout to send heartbeats
                         cmd = command_queue.get(timeout=2.0)
                         msg = json.dumps(cmd)
                         self.wfile.write(f"data: {msg}\n\n".encode('utf-8'))
                         self.wfile.flush()
                     except queue.Empty:
-                        # Heartbeat ping
                         self.wfile.write(b": heartbeat\n\n")
                         self.wfile.flush()
-            except (ConnectionResetError, BrokenPipeError):
+            except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
                 with state_lock:
                     current_client_state["connected"] = False
             return
@@ -99,13 +142,28 @@ class AgentBridgeHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(data.encode('utf-8'))
             return
 
+        # 4. Get Elements List
+        elif url.path == '/api/elements':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            with state_lock:
+                elems = current_client_state.get("elements", [])
+                if not elems and current_client_state.get("fileName"):
+                    candidate_file = os.path.join(DIRECTORY, current_client_state["fileName"])
+                    if os.path.exists(candidate_file):
+                        elems = parse_svg_elements(candidate_file)
+                data = json.dumps({"count": len(elems), "elements": elems})
+            self.wfile.write(data.encode('utf-8'))
+            return
+
         # Default static file handling
         return super().do_GET()
 
     def do_POST(self):
         url = urllib.parse.urlparse(self.path)
 
-        # Helper to read JSON body
         content_len = int(self.headers.get('Content-Length', 0))
         post_body = self.rfile.read(content_len).decode('utf-8') if content_len > 0 else '{}'
         try:
@@ -120,7 +178,6 @@ class AgentBridgeHandler(http.server.SimpleHTTPRequestHandler):
                 current_client_state["connected"] = True
                 current_client_state["lastUpdated"] = time.time()
 
-            # If this state report includes a correlation action result, notify waiting agents
             action_id = body.get("actionId")
             if action_id:
                 with result_lock:
@@ -148,7 +205,6 @@ class AgentBridgeHandler(http.server.SimpleHTTPRequestHandler):
                 "timestamp": time.time()
             }
 
-            # Prepare wait event if synchronous response is requested
             wait_for_result = body.get("sync", True)
             ev = threading.Event()
             if wait_for_result:
@@ -239,12 +295,17 @@ class AgentBridgeHandler(http.server.SimpleHTTPRequestHandler):
 
 def run_server():
     os.chdir(DIRECTORY)
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", PORT), AgentBridgeHandler) as httpd:
-        print(f"Agent Bridge Server listening at http://localhost:{PORT}")
-        print(f"SSE Command Stream at http://localhost:{PORT}/api/agent-events")
-        print(f"REST API at http://localhost:{PORT}/api/action")
+    server_address = ("", PORT)
+    httpd = ThreadedHTTPServer(server_address, AgentBridgeHandler)
+    print(f"Agent Bridge Server listening at http://localhost:{PORT}")
+    print(f"SSE Command Stream at http://localhost:{PORT}/api/agent-events")
+    print(f"REST API at http://localhost:{PORT}/api/action")
+    try:
         httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        httpd.server_close()
 
 if __name__ == '__main__':
     run_server()

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "vector-difference-studio": {
+      "command": "python",
+      "args": [
+        "F:\\svg puzzle\\diff_studio_mcp.py"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}

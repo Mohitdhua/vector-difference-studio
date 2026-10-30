@@ -678,28 +678,47 @@
       </div>
 
       <!-- AI COPILOT DRAWER (POPUP / MODAL) -->
-      <div id="copilot-drawer" class="absolute top-4 right-4 w-96 bg-[#0d111a]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl p-5 shadow-2xl z-50 hidden space-y-4">
+      <div id="copilot-drawer" class="absolute top-4 right-4 w-[420px] max-w-[95vw] bg-[#0d111a]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl p-5 shadow-2xl z-50 hidden space-y-4 max-h-[90vh] overflow-y-auto">
+        <!-- Top Bar with Status and Close -->
         <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
           <div class="flex items-center space-x-2">
-            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center shadow-md">
-              <span class="text-sm">🤖</span>
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center shadow-md">
+              <span class="text-base">🤖</span>
             </div>
             <div>
-              <span class="text-xs font-extrabold uppercase tracking-wider text-white">AI Difference Copilot</span>
+              <div class="flex items-center space-x-2">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-white">AI Difference Copilot</span>
+                <span id="gemini-active-badge" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 hidden">Gemini Vision</span>
+              </div>
               <div id="bridge-status-text" class="text-[10px] text-purple-300 flex items-center space-x-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                <span>In-Browser Heuristic Agent</span>
+                <span>In-Browser Heuristic & Vision Agent</span>
               </div>
             </div>
           </div>
-          <button onclick="toggleCopilotModal()" class="text-slate-400 hover:text-white text-xs px-2 py-1 rounded-lg hover:bg-white/10">✕</button>
+          <button onclick="toggleCopilotModal()" class="text-slate-400 hover:text-white text-xs px-2.5 py-1.5 rounded-xl hover:bg-white/10 transition-colors">✕</button>
         </div>
 
-        <!-- 1-CLICK AUTO GENERATOR -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300">1-Click Auto Differences</span>
-            <span class="text-[10px] text-purple-400 font-mono">Autonomous</span>
+        <!-- COPILOT TABS -->
+        <div class="flex p-1 bg-black/40 rounded-xl border border-white/[0.06] text-xs font-semibold">
+          <button onclick="switchCopilotTab('auto')" id="tab-btn-auto" class="flex-1 py-1.5 rounded-lg text-purple-300 bg-purple-500/20 shadow-sm transition-all text-center">⚡ Auto-Gen</button>
+          <button onclick="switchCopilotTab('chat')" id="tab-btn-chat" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all text-center">💬 AI Prompt</button>
+          <button onclick="switchCopilotTab('settings')" id="tab-btn-settings" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all text-center">⚙️ API & MCP</button>
+        </div>
+
+        <!-- TAB 1: AUTO GENERATOR -->
+        <div id="copilot-tab-auto" class="space-y-3.5">
+          <!-- Engine Selection Pill -->
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1 font-medium">Generation Engine:</label>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button onclick="setCopilotEngine('rules', this)" id="engine-btn-rules" class="copilot-engine-btn py-1.5 px-2 rounded-xl text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm transition-all flex items-center justify-center space-x-1.5">
+                <span>⚙️ Smart Rules (Offline)</span>
+              </button>
+              <button onclick="setCopilotEngine('gemini', this)" id="engine-btn-gemini" class="copilot-engine-btn py-1.5 px-2 rounded-xl text-[11px] font-semibold text-slate-400 bg-white/5 border border-white/10 hover:text-white transition-all flex items-center justify-center space-x-1.5">
+                <span>✨ Gemini 2.0 Vision</span>
+              </button>
+            </div>
           </div>
 
           <!-- Difference Count Chips -->
@@ -726,40 +745,73 @@
           <!-- Action Button -->
           <button onclick="executeCopilotAuto()" id="btn-copilot-auto" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-500 via-indigo-500 to-sky-500 hover:from-purple-400 hover:to-sky-400 text-xs font-bold text-white shadow-lg shadow-purple-500/25 flex items-center justify-center space-x-2 transition-all hover:scale-[1.01] active:scale-[0.99]">
             <span>✨</span>
-            <span>Auto-Generate Differences Now</span>
+            <span id="auto-btn-label">Auto-Generate Differences Now</span>
           </button>
+          <div id="copilot-status-msg" class="text-[10px] text-slate-400 min-h-[16px] text-center">Ready for autonomous puzzle creation.</div>
         </div>
 
-        <!-- NATURAL LANGUAGE COMMAND PROMPT -->
-        <div class="pt-3 border-t border-white/[0.08] space-y-2">
-          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-1">
-            <span>💬</span><span>Natural Language Command</span>
-          </span>
+        <!-- TAB 2: NATURAL LANGUAGE PROMPT & CHAT LOG -->
+        <div id="copilot-tab-chat" class="space-y-3 hidden">
+          <div id="copilot-chat-log" class="h-44 bg-black/40 rounded-xl p-2.5 border border-white/[0.06] overflow-y-auto space-y-2 text-[11px] font-sans">
+            <div class="text-slate-400 italic">🤖 Copilot ready. Ask me to erase an accessory, recolor clothing, or pull a curve...</div>
+          </div>
           <div class="flex space-x-1.5">
-            <input type="text" id="copilot-prompt-input" placeholder='e.g. "erase star", "recolor ball to blue", "pull hair"' onkeydown="if(event.key==='Enter') executeCopilotPrompt()" class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-400">
+            <input type="text" id="copilot-prompt-input" placeholder='e.g. "erase snowball", "recolor jacket to orange"' onkeydown="if(event.key==='Enter') executeCopilotPrompt()" class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-400">
             <button onclick="executeCopilotPrompt()" class="px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-xs font-bold text-purple-300 border border-purple-500/30 transition-colors">
-              Run
+              Send
             </button>
           </div>
-          <div id="copilot-status-msg" class="text-[10px] text-slate-400 min-h-[16px]">Ready for agent commands.</div>
+          <div class="flex justify-between items-center text-[10px] text-slate-400">
+            <span>💡 Try: "erase star", "recolor scarf to blue"</span>
+            <button onclick="clearChatLog()" class="hover:text-slate-300 underline">Clear Log</button>
+          </div>
         </div>
 
-        <!-- AGENT CLI & MCP CONNECTION SNIPPET -->
-        <div class="pt-3 border-t border-white/[0.08] text-[10px] text-slate-400 space-y-1.5">
-          <div class="flex justify-between items-center text-slate-300 font-semibold">
-            <span>Coding Agent Terminal CLI:</span>
-            <span class="text-[9px] text-emerald-400 font-mono">python studio_cli.py</span>
+        <!-- TAB 3: SETTINGS & MCP -->
+        <div id="copilot-tab-settings" class="space-y-3 hidden text-xs">
+          <div class="p-3 bg-white/5 rounded-xl border border-white/10 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-slate-200">Google Gemini API Key</span>
+              <span id="gemini-key-status" class="text-[10px] text-slate-400">Not configured</span>
+            </div>
+            <p class="text-[10px] text-slate-400">Enables Gemini 2.0 Flash Multimodal Vision to inspect the artwork like a human puzzle designer.</p>
+            <div class="flex space-x-1.5">
+              <input type="password" id="gemini-api-key-input" placeholder="AIzaSy..." class="flex-1 bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-purple-400 font-mono">
+              <button onclick="saveGeminiApiKey()" class="px-2.5 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/40 font-bold text-purple-300 border border-purple-500/30">Save</button>
+              <button onclick="testGeminiApiKey()" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 font-bold text-emerald-300 border border-emerald-500/30">Test</button>
+            </div>
+            <div class="flex justify-between items-center text-[9px] text-slate-400">
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-sky-400 hover:underline">Get free Gemini API key →</a>
+              <span class="text-slate-500">Stored in localStorage</span>
+            </div>
           </div>
-          <div class="bg-black/60 p-2 rounded-lg font-mono text-[9px] text-slate-300 overflow-x-auto select-all">
-            python studio_cli.py auto --diffs 5<br>
-            python studio_cli.py pull --x 481 --y 521 --dx 30 --dy 15<br>
-            python studio_cli.py erase --x 300 --y 400
+
+          <!-- MCP / CODING AGENT CONFIG -->
+          <div class="p-3 bg-white/5 rounded-xl border border-white/10 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-slate-200">External Coding Agent (MCP)</span>
+              <span class="text-[10px] text-emerald-400 font-mono">Port 8080 Active</span>
+            </div>
+            <p class="text-[10px] text-slate-400">Connect Claude Desktop, Claude Code, Cursor, or Antigravity to drive this canvas directly.</p>
+            <div class="bg-black/60 p-2 rounded-lg font-mono text-[9px] text-slate-300 overflow-x-auto select-all">
+{
+  "mcpServers": {
+    "vector-studio": {
+      "command": "python",
+      "args": ["F:\\svg puzzle\\diff_studio_mcp.py"]
+    }
+  }
+}
+            </div>
+            <button onclick="copyMcpConfigSnippet()" class="w-full py-1.5 rounded-lg bg-white/10 hover:bg-white/20 font-semibold text-slate-200 text-[10px] transition-colors">
+              📋 Copy Claude / MCP Config
+            </button>
           </div>
         </div>
 
       </div>
 
-    </main>
+      </main>
   </div>
 
   <script>
@@ -1467,6 +1519,7 @@
       const origPaths = layerOrig.querySelectorAll('path');
       const modPaths = layerMod.querySelectorAll('path');
       let index = 1;
+      const existingCircles = [];
 
       for (let i = 0; i < Math.min(origPaths.length, modPaths.length); i++) {
         const dOrig = origPaths[i].getAttribute('d');
@@ -1480,9 +1533,17 @@
             // If erased in puzzle, take bbox from original baseline!
             const targetEl = isErased ? origPaths[i] : modPaths[i];
             const bbox = targetEl.getBBox();
+            if (bbox.width <= 2 && bbox.height <= 2) continue;
             const cx = bbox.x + bbox.width / 2;
             const cy = bbox.y + bbox.height / 2;
-            const r = Math.max(bbox.width, bbox.height) / 2 + 10;
+            if (cx <= 5 && cy <= 5) continue; // Skip edge boundary artifacts
+
+            // Deduplicate sister paths (within 30px)
+            const isDup = existingCircles.some(c => Math.hypot(c.x - cx, c.y - cy) < 30);
+            if (isDup) continue;
+            existingCircles.push({ x: cx, y: cy });
+
+            const r = Math.min(Math.max(bbox.width, bbox.height) / 2 + 10, 80);
 
             const circle = document.createElement('div');
             circle.className = 'absolute rounded-full border-2 border-red-500 pointer-events-none flex items-center justify-center font-bold text-red-500 text-xs shadow-lg shadow-red-500/40';
@@ -1786,10 +1847,50 @@
       }
     });
 
-    // COPILOT DRAWER SYSTEM
+    // COPILOT DRAWER & MULTIMODAL AI SYSTEM
+    let copilotEngine = 'rules'; // 'rules' or 'gemini'
+
     function toggleCopilotModal() {
       const drawer = document.getElementById('copilot-drawer');
       drawer.classList.toggle('hidden');
+      if (!drawer.classList.contains('hidden')) {
+        updateGeminiKeyStatusUI();
+      }
+    }
+
+    function switchCopilotTab(tab) {
+      ['auto', 'chat', 'settings'].forEach(t => {
+        const pane = document.getElementById(`copilot-tab-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (pane) pane.classList.toggle('hidden', t !== tab);
+        if (btn) {
+          if (t === tab) {
+            btn.className = 'flex-1 py-1.5 rounded-lg text-purple-300 bg-purple-500/20 shadow-sm transition-all text-center';
+          } else {
+            btn.className = 'flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all text-center';
+          }
+        }
+      });
+    }
+
+    function setCopilotEngine(engine, btn) {
+      copilotEngine = engine;
+      document.querySelectorAll('.copilot-engine-btn').forEach(b => {
+        b.className = 'copilot-engine-btn py-1.5 px-2 rounded-xl text-[11px] font-semibold text-slate-400 bg-white/5 border border-white/10 hover:text-white transition-all flex items-center justify-center space-x-1.5';
+      });
+      btn.className = 'copilot-engine-btn py-1.5 px-2 rounded-xl text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm transition-all flex items-center justify-center space-x-1.5';
+      
+      const badge = document.getElementById('gemini-active-badge');
+      if (badge) badge.classList.toggle('hidden', engine !== 'gemini');
+
+      if (engine === 'gemini') {
+        const key = localStorage.getItem('vector_studio_gemini_key');
+        if (!key) {
+          switchCopilotTab('settings');
+          const status = document.getElementById('gemini-key-status');
+          if (status) status.innerHTML = '<span class="text-amber-400 font-bold">⚠️ Enter API Key First</span>';
+        }
+      }
     }
 
     function setCopilotCount(n, btn) {
@@ -1808,102 +1909,311 @@
       btn.className = 'copilot-diff-btn py-1 rounded-lg text-[11px] font-semibold text-purple-300 bg-purple-500/20 border border-purple-500/40 shadow-sm transition-all';
     }
 
-    function executeCopilotAuto() {
-      if (!hasSvgLoaded) {
-        alert('Please load an SVG illustration first!');
-        return;
-      }
-      const res = window.editorAPI.autoGenerateDiffs(copilotDiffCount, copilotDifficulty);
-      const msg = document.getElementById('copilot-status-msg');
-      if (res && res.status === 'success') {
-        msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Generated ${res.diffsGenerated} subtle differences autonomously!</span>`;
+    function appendCopilotLog(message, isUser = false) {
+      const log = document.getElementById('copilot-chat-log');
+      if (!log) return;
+      const entry = document.createElement('div');
+      entry.className = isUser 
+        ? 'bg-purple-500/20 text-purple-200 border border-purple-500/30 rounded-xl p-2 text-right' 
+        : 'bg-white/5 text-slate-300 border border-white/10 rounded-xl p-2';
+      entry.innerHTML = message;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function clearChatLog() {
+      const log = document.getElementById('copilot-chat-log');
+      if (log) log.innerHTML = '<div class="text-slate-400 italic">🤖 Copilot ready. Ask me to modify, erase, or recolor anything.</div>';
+    }
+
+    function saveGeminiApiKey() {
+      const input = document.getElementById('gemini-api-key-input');
+      const key = input.value.trim();
+      if (!key) return;
+      localStorage.setItem('vector_studio_gemini_key', key);
+      updateGeminiKeyStatusUI();
+      alert('Gemini API Key saved locally!');
+    }
+
+    function updateGeminiKeyStatusUI() {
+      const key = localStorage.getItem('vector_studio_gemini_key');
+      const status = document.getElementById('gemini-key-status');
+      const input = document.getElementById('gemini-api-key-input');
+      if (key) {
+        if (input && !input.value) input.value = key;
+        if (status) status.innerHTML = '<span class="text-emerald-400 font-semibold">✓ Key Stored</span>';
+      } else {
+        if (status) status.innerHTML = '<span class="text-slate-400">Not configured</span>';
       }
     }
 
-    function executeCopilotPrompt() {
+    async function testGeminiApiKey() {
+      const key = (document.getElementById('gemini-api-key-input').value || localStorage.getItem('vector_studio_gemini_key') || '').trim();
+      const status = document.getElementById('gemini-key-status');
+      if (!key) {
+        status.innerHTML = '<span class="text-red-400">Missing Key</span>';
+        return;
+      }
+      status.innerHTML = '<span class="text-purple-300 animate-pulse">Testing...</span>';
+      try {
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+        if (resp.ok) {
+          localStorage.setItem('vector_studio_gemini_key', key);
+          status.innerHTML = '<span class="text-emerald-400 font-bold">✓ Connected to Gemini!</span>';
+        } else {
+          status.innerHTML = '<span class="text-red-400 font-bold">✗ Invalid Key</span>';
+        }
+      } catch(e) {
+        status.innerHTML = '<span class="text-red-400 font-bold">✗ Network Error</span>';
+      }
+    }
+
+    function copyMcpConfigSnippet() {
+      const cfg = {
+        "mcpServers": {
+          "vector-studio": {
+            "command": "python",
+            "args": ["F:\\svg puzzle\\diff_studio_mcp.py"]
+          }
+        }
+      };
+      navigator.clipboard.writeText(JSON.stringify(cfg, null, 2));
+      alert('MCP Server configuration copied to clipboard!');
+    }
+
+    // Capture Canvas Base64 PNG for Multimodal Vision
+    async function getCanvasPngBase64() {
+      const svgEl = layerOrig.querySelector('svg');
+      if (!svgEl) return null;
+      const svgXml = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgXml], {type: 'image/svg+xml;charset=utf-8'});
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+        img.src = url;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = svgWidth || 1000;
+      canvas.height = svgHeight || 1000;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      return canvas.toDataURL('image/png').split(',')[1];
+    }
+
+    async function executeCopilotAuto() {
+      if (!hasSvgLoaded) {
+        alert('Please load or drop an SVG illustration first!');
+        return;
+      }
+      const msg = document.getElementById('copilot-status-msg');
+
+      if (copilotEngine === 'gemini') {
+        const key = localStorage.getItem('vector_studio_gemini_key');
+        if (!key) {
+          switchCopilotTab('settings');
+          msg.innerHTML = '<span class="text-amber-400">Please enter a Gemini API Key first</span>';
+          return;
+        }
+
+        msg.innerHTML = '<span class="text-purple-400 animate-pulse font-semibold">Gemini 2.0 Flash is inspecting artwork & designing puzzle…</span>';
+        try {
+          const base64Png = await getCanvasPngBase64();
+          const candidates = window.editorAPI.getElements().filter(e => e.relArea >= 0.0005 && e.relArea <= 0.09 && !e.isHidden).slice(0, 70);
+
+          const prompt = `You are a world-class Spot-the-Difference puzzle designer for Highlights magazine.
+Examine this illustration image and the candidate SVG elements list.
+Design exactly ${copilotDiffCount} subtle, delightful differences (${copilotDifficulty} difficulty).
+
+Rules:
+- Erase small isolated accessories, stars, snowballs, buttons, patches, background props.
+- Or recolor secondary clothing / ball patches with harmonious, tasteful colors.
+- Or subtle contour displacement.
+- Never distort main facial features or major silhouettes.
+- Return ONLY strict JSON (no markdown formatting, no code block) matching this schema:
+{
+  "differences": [
+    {
+      "type": "erase" | "recolor" | "pull",
+      "index": number,
+      "x": number,
+      "y": number,
+      "color": "#hex" (if recolor),
+      "dx": number (if pull),
+      "dy": number (if pull),
+      "description": "Short explanation"
+    }
+  ]
+}
+
+Candidate Elements:
+${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bbox, center: c.center })))}`;
+
+          const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: prompt },
+                  { inline_data: { mime_type: "image/png", data: base64Png } }
+                ]
+              }],
+              generationConfig: {
+                response_mime_type: "application/json",
+                temperature: 0.3
+              }
+            })
+          });
+
+          if (!resp.ok) throw new Error('Gemini API call failed');
+          const data = await resp.json();
+          const plan = JSON.parse(data.candidates[0].content.parts[0].text);
+          let created = 0;
+          const details = [];
+
+          for (let d of (plan.differences || [])) {
+            if (d.type === 'erase') {
+              window.editorAPI.erase(d.x, d.y, d.index);
+              created++;
+              details.push(`✂️ Erased: ${d.description || 'Accessory detail'}`);
+            } else if (d.type === 'recolor' && d.color) {
+              window.editorAPI.recolor(d.x, d.y, d.color, d.index);
+              created++;
+              details.push(`🎨 Recolored: ${d.description || 'Color shifted'}`);
+            } else if (d.type === 'pull') {
+              window.editorAPI.pull(d.x, d.y, d.dx || 16, d.dy || 8);
+              created++;
+              details.push(`📐 Nudged: ${d.description || 'Curvature'}`);
+            }
+          }
+
+          appendCopilotLog(`<b>✨ Gemini 2.0 Vision designed ${created} differences:</b><br>` + details.map(x => `• ${x}`).join('<br>'));
+          msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Gemini 2.0 Vision created ${created} differences!</span>`;
+          return;
+        } catch(err) {
+          console.warn('Gemini vision fallback to rules:', err);
+          msg.innerHTML = `<span class="text-amber-400">⚠️ Gemini vision fallback: Running Smart Rules Engine</span>`;
+        }
+      }
+
+      // Offline Smart Rules Engine Fallback
+      const res = window.editorAPI.autoGenerateDiffs(copilotDiffCount, copilotDifficulty);
+      if (res && res.status === 'success') {
+        msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Smart Rules Engine created ${res.diffsGenerated} balanced differences!</span>`;
+        if (res.details) {
+          appendCopilotLog(`<b>⚙️ Smart Rules Generated ${res.diffsGenerated} Diffs:</b><br>` + res.details.map(d => `• ${d.name}`).join('<br>'));
+        }
+      }
+    }
+
+    async function executeCopilotPrompt() {
       if (!hasSvgLoaded) {
         alert('Please load an SVG illustration first!');
         return;
       }
       const input = document.getElementById('copilot-prompt-input');
-      const query = input.value.trim().toLowerCase();
+      const query = input.value.trim();
       if (!query) return;
 
+      appendCopilotLog(`User: "${query}"`, true);
       const msg = document.getElementById('copilot-status-msg');
       msg.textContent = 'Processing agent instruction…';
-
-      if (query.includes('erase') || query.includes('delete') || query.includes('remove')) {
-        // Find smallest candidate path (e.g. star, speck, accessory)
-        const paths = Array.from(layerMod.querySelectorAll('path')).filter(p => {
-          try {
-            const b = p.getBBox();
-            return b.width > 8 && b.width < 120 && b.height > 8 && b.height < 120 && p.style.display !== 'none';
-          } catch(e) { return false; }
-        });
-        if (paths.length > 0) {
-          const target = paths[Math.floor(Math.random() * paths.length)];
-          const b = target.getBBox();
-          window.editorAPI.erase(b.x + b.width / 2, b.y + b.height / 2);
-          msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Erased detail object cleanly!</span>`;
-        }
-      }
-      else if (query.includes('recolor') || query.includes('color') || query.includes('paint')) {
-        let targetColor = '#3b82f6';
-        if (query.includes('red')) targetColor = '#ef4444';
-        else if (query.includes('green')) targetColor = '#10b981';
-        else if (query.includes('purple')) targetColor = '#8b5cf6';
-        else if (query.includes('yellow') || query.includes('gold')) targetColor = '#eab308';
-        else if (query.includes('pink')) targetColor = '#ec4899';
-        else if (query.includes('orange')) targetColor = '#f97316';
-        else if (query.includes('white')) targetColor = '#ffffff';
-
-        const paths = Array.from(layerMod.querySelectorAll('path')).filter(p => {
-          const f = p.getAttribute('fill') || '';
-          return f && f !== '#000000' && f !== 'black' && f !== 'none' && p.style.display !== 'none';
-        });
-
-        if (paths.length > 0) {
-          const targetPath = paths[Math.floor(paths.length / 2)];
-          targetPath.setAttribute('fill', targetColor);
-          pushHistory();
-          msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Recolored shape to ${targetColor}</span>`;
-        }
-      }
-      else if (query.includes('pull') || query.includes('curve') || query.includes('warp')) {
-        const paths = Array.from(layerMod.querySelectorAll('path'));
-        let anchor = null;
-        for (let p of paths) {
-          const d = p.getAttribute('d') || '';
-          const m = d.match(/([0-9]+\.?[0-9]*)\s+([0-9]+\.?[0-9]*)/);
-          if (m) {
-            const x = parseFloat(m[1]);
-            const y = parseFloat(m[2]);
-            if (x > 200 && x < svgWidth - 200 && y > 200 && y < svgHeight - 200) {
-              anchor = { x, y };
-              break;
-            }
-          }
-        }
-        if (anchor) {
-          window.editorAPI.pull(anchor.x, anchor.y, 25, 12, 32, 45);
-          msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Pulled linked curve at (${anchor.x.toFixed(0)}, ${anchor.y.toFixed(0)})</span>`;
-        }
-      }
-      else if (query.includes('diff') || query.includes('generate') || query.includes('create')) {
-        const numMatch = query.match(/\d+/);
-        const count = numMatch ? parseInt(numMatch[0], 10) : 5;
-        window.editorAPI.autoGenerateDiffs(count, 'medium');
-        msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Generated ${count} differences!</span>`;
-      }
-      else if (query.includes('undo')) {
-        undo();
-        msg.textContent = 'Undid last change.';
-      }
-      else {
-        window.editorAPI.autoGenerateDiffs(1, 'medium');
-        msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Applied subtle difference based on prompt!</span>`;
-      }
       input.value = '';
+
+      const key = localStorage.getItem('vector_studio_gemini_key');
+      if (copilotEngine === 'gemini' && key) {
+        try {
+          const base64Png = await getCanvasPngBase64();
+          const candidates = window.editorAPI.getElements().filter(e => e.relArea >= 0.0005 && e.relArea <= 0.09 && !e.isHidden).slice(0, 70);
+
+          const prompt = `User instruction: "${query}".
+Look at this illustration image and candidate elements list.
+Identify which element the user is referring to and what action to perform.
+Return strictly JSON:
+{
+  "action": "erase" | "recolor" | "pull",
+  "index": number,
+  "x": number,
+  "y": number,
+  "color": "#hex" (if recoloring),
+  "explanation": "Brief explanation of what was done"
+}
+
+Candidate elements:
+${JSON.stringify(candidates.map(c => ({ index: c.index, fill: c.fill, bbox: c.bbox, center: c.center })))}`;
+
+          const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: prompt },
+                  { inline_data: { mime_type: "image/png", data: base64Png } }
+                ]
+              }],
+              generationConfig: { response_mime_type: "application/json" }
+            })
+          });
+
+          if (resp.ok) {
+            const data = await resp.json();
+            const plan = JSON.parse(data.candidates[0].content.parts[0].text);
+            if (plan.action === 'erase') {
+              window.editorAPI.erase(plan.x, plan.y, plan.index);
+            } else if (plan.action === 'recolor' && plan.color) {
+              window.editorAPI.recolor(plan.x, plan.y, plan.color, plan.index);
+            } else if (plan.action === 'pull') {
+              window.editorAPI.pull(plan.x, plan.y, 20, 10);
+            }
+            appendCopilotLog(`🤖 ${plan.explanation || 'Action applied successfully!'}`);
+            msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ ${plan.explanation || 'Applied'}</span>`;
+            return;
+          }
+        } catch(e) {
+          console.warn('Gemini chat error, fallback to local parser', e);
+        }
+      }
+
+      // Offline Heuristic / Regex Interpreter
+      const q = query.toLowerCase();
+      if (q.includes('erase') || q.includes('delete') || q.includes('remove')) {
+        const candidates = window.editorAPI.getElements().filter(e => e.relArea >= 0.0005 && e.relArea <= 0.04 && !e.isHidden);
+        if (candidates.length > 0) {
+          const target = candidates[Math.floor(Math.random() * candidates.length)];
+          window.editorAPI.erase(target.center.x, target.center.y, target.index);
+          appendCopilotLog(`✂️ Erased accessory detail at (${target.center.x}, ${target.center.y})`);
+          msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Erased object cleanly!</span>`;
+        }
+      } else if (q.includes('recolor') || q.includes('color')) {
+        let newCol = '#f59e0b';
+        if (q.includes('blue')) newCol = '#3b82f6';
+        else if (q.includes('red')) newCol = '#ef4444';
+        else if (q.includes('green')) newCol = '#10b981';
+        else if (q.includes('orange')) newCol = '#f97316';
+        else if (q.includes('purple')) newCol = '#8b5cf6';
+        else if (q.includes('pink')) newCol = '#ec4899';
+
+        const candidates = window.editorAPI.getElements().filter(e => e.relArea >= 0.005 && e.relArea <= 0.08 && e.fill !== 'none' && !e.isHidden && e.fill !== '#000000');
+        if (candidates.length > 0) {
+          const target = candidates[Math.floor(Math.random() * candidates.length)];
+          window.editorAPI.recolor(target.center.x, target.center.y, newCol, target.index);
+          appendCopilotLog(`🎨 Recolored element from ${target.fill} to ${newCol}`);
+          msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Recolored shape to ${newCol}</span>`;
+        }
+      } else if (q.includes('undo')) {
+        undo();
+        appendCopilotLog('↺ Undid last modification.');
+      } else {
+        const res = window.editorAPI.autoGenerateDiffs(1, 'medium');
+        appendCopilotLog(`✨ Generated 1 subtle difference.`);
+        msg.innerHTML = `<span class="text-emerald-400 font-semibold">✓ Applied subtle difference</span>`;
+      }
     }
 
     // EXPORT DROPDOWN SYSTEM
@@ -2137,6 +2447,7 @@
       if (!isAgentConnected) return;
       try {
         const state = window.editorAPI.getState();
+        state.diffs = window.editorAPI.getDiffs();
         if (actionId) state.actionId = actionId;
         fetch('/api/report-state', {
           method: 'POST',
@@ -2175,6 +2486,9 @@
         result = { success: true };
       } else if (action === 'reset') {
         resetToOriginal();
+        result = { success: true };
+      } else if (action === 'exportPuzzle') {
+        exportChallengeAndSolution(params.format || 'png', params.scale || 2);
         result = { success: true };
       }
 
@@ -2219,8 +2533,10 @@
         // Hide sister outline if small
         try {
           const b = target.getBBox();
-          if (b.width < 140 && b.height < 140 && x !== undefined && y !== undefined) {
-            const sisters = getLinkedPaths(x, y);
+          const targetX = (x !== undefined) ? x : (b.x + b.width / 2);
+          const targetY = (y !== undefined) ? y : (b.y + b.height / 2);
+          if (b.width < 140 && b.height < 140) {
+            const sisters = getLinkedPaths(targetX, targetY);
             sisters.forEach(sp => {
               if (sp.getBBox().width < 160) {
                 sp.style.display = 'none';
@@ -2322,6 +2638,29 @@
         return { success: any, totalDiffs: countDiffs() };
       },
 
+      getElements: function() {
+        if (!hasSvgLoaded) return [];
+        const svg = layerMod.querySelector('svg');
+        if (!svg) return [];
+        const paths = Array.from(svg.querySelectorAll('path'));
+        const canvasArea = (svgWidth || 1000) * (svgHeight || 1000);
+        return paths.map((p, idx) => {
+          let bbox = { x: 0, y: 0, width: 0, height: 0 };
+          try { bbox = p.getBBox(); } catch(e) {}
+          const relArea = (bbox.width * bbox.height) / canvasArea;
+          const isHidden = (p.style.display === 'none' || p.getAttribute('display') === 'none');
+          return {
+            index: idx,
+            fill: (p.getAttribute('fill') || 'none').toLowerCase().trim(),
+            stroke: (p.getAttribute('stroke') || 'none').toLowerCase().trim(),
+            bbox: { x: Math.round(bbox.x), y: Math.round(bbox.y), w: Math.round(bbox.width), h: Math.round(bbox.height) },
+            center: { x: Math.round(bbox.x + bbox.width / 2), y: Math.round(bbox.y + bbox.height / 2) },
+            relArea: parseFloat(relArea.toFixed(4)),
+            isHidden: isHidden
+          };
+        });
+      },
+
       autoGenerateDiffs: function(count = 5, difficulty = 'medium') {
         if (!hasSvgLoaded) return { error: "No SVG loaded" };
         const svg = layerMod.querySelector('svg');
@@ -2330,63 +2669,144 @@
         const allPaths = Array.from(svg.querySelectorAll('path'));
         if (allPaths.length < 5) return { error: "Not enough paths" };
 
+        const canvasArea = (svgWidth || 1000) * (svgHeight || 1000);
         const candidates = [];
+
         allPaths.forEach((p, idx) => {
           try {
-            const bbox = p.getBBox();
-            const fill = (p.getAttribute('fill') || '').toLowerCase();
-            if (bbox.width > 12 && bbox.height > 12 && bbox.width < svgWidth * 0.75 && bbox.height < svgHeight * 0.75) {
-              candidates.push({ p, idx, bbox, fill });
+            if (p.style.display === 'none' || p.getAttribute('display') === 'none') return;
+            const b = p.getBBox();
+            if (b.width < 10 || b.height < 10) return;
+            const area = b.width * b.height;
+            const relArea = area / canvasArea;
+
+            // Strict Rules: Ban large background sky, snowdrifts, whole body outlines
+            if (relArea > 0.09) return;
+            if (b.x < 15 && b.y < 15 && (b.width > svgWidth * 0.8 || b.height > svgHeight * 0.8)) return;
+
+            const fill = (p.getAttribute('fill') || 'none').toLowerCase().trim();
+            const stroke = (p.getAttribute('stroke') || 'none').toLowerCase().trim();
+            const isBlack = (fill === '#000000' || fill === 'black' || fill === '#000');
+            const isWhite = (fill === '#ffffff' || fill === 'white' || fill === '#fff' || fill === '#fefffa');
+
+            let category = 'detail';
+            if (relArea >= 0.0004 && relArea <= 0.035) {
+              category = 'accessory'; // buttons, snowballs, stars, patches, props
+            } else if (relArea > 0.035 && relArea <= 0.09 && !isBlack) {
+              category = 'clothing_block'; // scarves, hats, gloves, ball sections
+            } else if (isBlack && (b.width < 100 || b.height < 100)) {
+              category = 'contour';
             }
+
+            candidates.push({
+              p, idx, bbox: b, area, relArea, fill, stroke, isBlack, isWhite, category,
+              cx: Math.round(b.x + b.width / 2),
+              cy: Math.round(b.y + b.height / 2)
+            });
           } catch(e) {}
         });
 
-        if (candidates.length === 0) return { error: "No eligible candidates" };
+        if (candidates.length === 0) return { error: "No eligible candidates found" };
 
-        const shuffled = candidates.sort(() => 0.5 - Math.random());
-        const targetDiffs = Math.min(count, shuffled.length);
-        let created = 0;
-        const PALETTE = ['#efa22c', '#e53e3e', '#3182ce', '#38a169', '#805ad5', '#d69e2e', '#ffffff'];
+        const accessories = candidates.filter(c => c.category === 'accessory');
+        const clothing = candidates.filter(c => c.category === 'clothing_block');
+        const contours = candidates.filter(c => c.category === 'contour');
 
-        for (let i = 0; i < targetDiffs; i++) {
-          const c = shuffled[i];
-          const cx = c.bbox.x + c.bbox.width / 2;
-          const cy = c.bbox.y + c.bbox.height / 2;
+        function getHarmoniousColorShift(origColor) {
+          const c = origColor.toLowerCase();
+          if (c.includes('467c4a') || c.includes('447a48') || c.includes('green')) return '#0d9488'; // Forest -> Deep Teal
+          if (c.includes('95bacd') || c.includes('94b9cc') || c.includes('93b8cb') || c.includes('blue')) return '#818cf8'; // Soft Blue -> Periwinkle
+          if (c.includes('d7727a') || c.includes('red')) return '#f59e0b'; // Soft Red -> Warm Amber
+          if (c.includes('6c6a5b') || c.includes('brown')) return '#475569'; // Muted Olive -> Slate
+          if (c.includes('5ea0ba')) return '#c084fc'; // Cyan -> Soft Violet
+          if (c.includes('fefffa') || c.includes('fff')) return '#fed7aa'; // White -> Soft Peach
+          const fallbacks = ['#f59e0b', '#0d9488', '#ec4899', '#3b82f6', '#8b5cf6'];
+          return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+        }
 
-          // Strategy 1: Erase small accessory (at least one in a set)
-          if (i === 1 && c.bbox.width < 80 && c.bbox.height < 80) {
-            c.p.style.display = 'none';
-            c.p.setAttribute('display', 'none');
-            triggerActionPing(cx, cy);
-            created++;
-          }
-          // Strategy 2: Color Shift
-          else if (c.fill && c.fill !== '#000000' && c.fill !== 'black' && i % 2 === 0) {
-            const newColor = PALETTE.find(col => col.toLowerCase() !== c.fill) || '#38a169';
-            c.p.setAttribute('fill', newColor);
-            triggerActionPing(cx, cy);
-            created++;
-          }
-          // Strategy 3: Linked Point Pull on contour
-          else {
-            const shiftDist = difficulty === 'subtle' ? 14 : (difficulty === 'medium' ? 22 : 35);
-            const shiftX = (Math.random() > 0.5 ? 1 : -1) * shiftDist;
-            const shiftY = (Math.random() > 0.5 ? 1 : -1) * (shiftDist * 0.6);
-            const snap = {
-              el: c.p,
-              tokens: c.p.getAttribute('d').match(/([a-df-z]|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/gi) || []
-            };
-            applyLinkedPull(snap, cx, cy, shiftX, shiftY, 32, 50);
-            triggerActionPing(cx, cy);
-            created++;
-          }
+        const diffsCreated = [];
+        const usedIndices = new Set();
+        const targetDiffs = Math.min(count, candidates.length);
+
+        const eraseCount = Math.max(1, Math.floor(targetDiffs * 0.4));
+        const colorCount = Math.max(1, Math.floor(targetDiffs * 0.4));
+
+        // 1. Clean Object Erases (with sister outline suppression)
+        const shuffledAcc = accessories.sort(() => 0.5 - Math.random());
+        for (let c of shuffledAcc) {
+          if (diffsCreated.length >= eraseCount) break;
+          if (usedIndices.has(c.idx)) continue;
+
+          c.p.style.display = 'none';
+          c.p.setAttribute('display', 'none');
+          usedIndices.add(c.idx);
+
+          // Hide sister outline contours cleanly
+          try {
+            const sisters = getLinkedPaths(c.cx, c.cy);
+            sisters.forEach(sp => {
+              if (sp.getBBox().width < 140) {
+                sp.style.display = 'none';
+                sp.setAttribute('display', 'none');
+              }
+            });
+          } catch(e) {}
+
+          triggerActionPing(c.cx, c.cy);
+          diffsCreated.push({
+            type: 'erase',
+            name: `Erased small accessory at (${c.cx}, ${c.cy})`,
+            bbox: c.bbox
+          });
+        }
+
+        // 2. Harmonious Color Shifts
+        const shuffledClothing = clothing.concat(accessories).filter(c => !usedIndices.has(c.idx) && !c.isBlack).sort(() => 0.5 - Math.random());
+        for (let c of shuffledClothing) {
+          if (diffsCreated.length >= eraseCount + colorCount) break;
+          if (usedIndices.has(c.idx)) continue;
+
+          const newColor = getHarmoniousColorShift(c.fill);
+          c.p.setAttribute('fill', newColor);
+          usedIndices.add(c.idx);
+          triggerActionPing(c.cx, c.cy);
+          diffsCreated.push({
+            type: 'recolor',
+            name: `Shifted color from ${c.fill} to ${newColor}`,
+            bbox: c.bbox
+          });
+        }
+
+        // 3. Smooth Curvature Micro-Pulls (tangent continuity)
+        const pullCandidates = candidates.filter(c => !usedIndices.has(c.idx) && c.bbox.width < 180 && c.bbox.height < 180).sort(() => 0.5 - Math.random());
+        for (let c of pullCandidates) {
+          if (diffsCreated.length >= targetDiffs) break;
+          if (usedIndices.has(c.idx)) continue;
+
+          const shiftDist = difficulty === 'subtle' ? 12 : (difficulty === 'medium' ? 18 : 26);
+          const shiftX = (Math.random() > 0.5 ? 1 : -1) * shiftDist;
+          const shiftY = (Math.random() > 0.5 ? 1 : -1) * (shiftDist * 0.6);
+
+          const snap = {
+            el: c.p,
+            tokens: c.p.getAttribute('d').match(/([a-df-z]|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/gi) || []
+          };
+          applyLinkedPull(snap, c.cx, c.cy, shiftX, shiftY, 28, 40);
+          usedIndices.add(c.idx);
+          triggerActionPing(c.cx, c.cy);
+          diffsCreated.push({
+            type: 'pull',
+            name: `Contour micro-pull at (${c.cx}, ${c.cy})`,
+            bbox: c.bbox
+          });
         }
 
         pushHistory();
         return {
-          status: "success",
-          diffsGenerated: created,
-          totalDiffs: countDiffs()
+          status: 'success',
+          diffsGenerated: diffsCreated.length,
+          totalDiffs: countDiffs(),
+          details: diffsCreated
         };
       },
 
@@ -2398,7 +2818,8 @@
           diffCount: countDiffs(),
           dimensions: { width: svgWidth, height: svgHeight },
           zoomLevel: zoomLevel,
-          targetMode: targetMode
+          targetMode: targetMode,
+          elements: this.getElements()
         };
       },
 

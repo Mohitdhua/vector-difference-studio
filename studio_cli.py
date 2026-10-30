@@ -28,6 +28,14 @@ def get_diffs():
         print(f"Error fetching diffs: {e}")
         return None
 
+def get_elements():
+    try:
+        r = requests.get(f"{SERVER_URL}/api/elements", timeout=3)
+        return r.json()
+    except Exception as e:
+        print(f"Error fetching elements: {e}")
+        return None
+
 def send_action(action, params=None, sync=True):
     payload = {
         "action": action,
@@ -59,6 +67,9 @@ def main():
     # Command: diffs
     subparsers.add_parser("diffs", help="Get list of active differences")
 
+    # Command: elements
+    subparsers.add_parser("elements", help="Inspect SVG paths, bounding boxes, and colors")
+
     # Command: load
     load_p = subparsers.add_parser("load", help="Load an SVG file from disk")
     load_p.add_argument("file_path", help="Path to .svg file")
@@ -83,44 +94,23 @@ def main():
     recolor_p.add_argument("--x", type=float, help="Coordinate X (SVG space)")
     recolor_p.add_argument("--y", type=float, help="Coordinate Y (SVG space)")
     recolor_p.add_argument("--index", type=int, help="Path index in SVG")
-    recolor_p.add_argument("--color", required=True, help="Hex color code, e.g. #3b82f6")
+    recolor_p.add_argument("--color", required=True, help="Hex or CSS color string (e.g. #ef4444)")
 
-    # Command: thicken
-    thicken_p = subparsers.add_parser("thicken", help="Expand contour line thickness")
-    thicken_p.add_argument("--x", type=float, required=True)
-    thicken_p.add_argument("--y", type=float, required=True)
-    thicken_p.add_argument("--radius", type=float, default=32)
-    thicken_p.add_argument("--strength", type=float, default=45)
-
-    # Command: contract
-    contract_p = subparsers.add_parser("contract", help="Shrink contour line thickness")
-    contract_p.add_argument("--x", type=float, required=True)
-    contract_p.add_argument("--y", type=float, required=True)
-    contract_p.add_argument("--radius", type=float, default=32)
-    contract_p.add_argument("--strength", type=float, default=45)
-
-    # Command: gap
-    gap_p = subparsers.add_parser("gap", help="Nudge feature or create gap")
-    gap_p.add_argument("--x", type=float, required=True)
-    gap_p.add_argument("--y", type=float, required=True)
-    gap_p.add_argument("--shift", type=float, default=18)
-    gap_p.add_argument("--radius", type=float, default=32)
-
-    # Command: auto
-    auto_p = subparsers.add_parser("auto", help="Auto-generate subtle differences autonomously")
-    auto_p.add_argument("--diffs", type=int, default=5, help="Number of differences to generate (default: 5)")
-    auto_p.add_argument("--difficulty", choices=["easy", "medium", "subtle"], default="medium")
-
-    # Command: export
-    export_p = subparsers.add_parser("export", help="Export puzzle challenge or solution card")
-    export_p.add_argument("--format", choices=["dual-card", "solution-card", "png", "jpg", "svg"], default="dual-card")
-    export_p.add_argument("--scale", type=int, default=2)
-    export_p.add_argument("--out", help="Output file path on disk")
+    # Command: auto (Autonomous Differences)
+    auto_p = subparsers.add_parser("auto", help="Autonomous generation of subtle differences")
+    auto_p.add_argument("--diffs", type=int, default=5, help="Number of differences to create (default: 5)")
+    auto_p.add_argument("--difficulty", choices=["easy", "medium", "subtle"], default="medium", help="Difficulty preset")
 
     # Command: undo, redo, reset
-    subparsers.add_parser("undo", help="Undo last action")
-    subparsers.add_parser("redo", help="Redo last action")
-    subparsers.add_parser("reset", help="Revert to master baseline")
+    subparsers.add_parser("undo", help="Undo last modification")
+    subparsers.add_parser("redo", help="Redo undone modification")
+    subparsers.add_parser("reset", help="Reset puzzle back to original unmodified state")
+
+    # Command: export
+    export_p = subparsers.add_parser("export", help="Export puzzle challenge and solution sheet")
+    export_p.add_argument("--output-dir", default="./puzzle_export", help="Directory to save exported files")
+    export_p.add_argument("--scale", type=float, default=2.0, help="Resolution scale (e.g. 1.0, 2.0, 4.0, 8.0)")
+    export_p.add_argument("--format", choices=["png", "svg"], default="png", help="Export format")
 
     args = parser.parse_args()
 
@@ -129,82 +119,70 @@ def main():
         sys.exit(1)
 
     if args.command == "state":
-        st = get_state()
-        print(json.dumps(st, indent=2))
+        res = get_state()
+        print(json.dumps(res, indent=2))
 
     elif args.command == "diffs":
-        df = get_diffs()
-        print(json.dumps(df, indent=2))
+        res = get_diffs()
+        print(json.dumps(res, indent=2))
+
+    elif args.command == "elements":
+        res = get_elements()
+        print(json.dumps(res, indent=2))
 
     elif args.command == "load":
         res = load_file(args.file_path)
         print(json.dumps(res, indent=2))
 
     elif args.command == "erase":
-        params = {}
-        if args.index is not None:
-            params["index"] = args.index
-        elif args.x is not None and args.y is not None:
-            params["x"] = args.x
-            params["y"] = args.y
-        else:
-            print("Error: Specify either --index or --x and --y")
-            sys.exit(1)
-        res = send_action("erase", params)
+        res = send_action("erase", {"x": args.x, "y": args.y, "index": args.index})
         print(json.dumps(res, indent=2))
 
     elif args.command == "pull":
-        params = {
+        res = send_action("pull", {
             "x": args.x,
             "y": args.y,
             "dx": args.dx,
             "dy": args.dy,
             "radius": args.radius,
             "strength": args.strength
-        }
-        res = send_action("pull", params)
+        })
         print(json.dumps(res, indent=2))
 
     elif args.command == "recolor":
-        params = {"color": args.color}
-        if args.index is not None:
-            params["index"] = args.index
-        elif args.x is not None and args.y is not None:
-            params["x"] = args.x
-            params["y"] = args.y
-        else:
-            print("Error: Specify either --index or --x and --y")
-            sys.exit(1)
-        res = send_action("recolor", params)
-        print(json.dumps(res, indent=2))
-
-    elif args.command == "thicken":
-        params = {"x": args.x, "y": args.y, "radius": args.radius, "strength": args.strength}
-        res = send_action("thicken", params)
-        print(json.dumps(res, indent=2))
-
-    elif args.command == "contract":
-        params = {"x": args.x, "y": args.y, "radius": args.radius, "strength": args.strength}
-        res = send_action("contract", params)
-        print(json.dumps(res, indent=2))
-
-    elif args.command == "gap":
-        params = {"x": args.x, "y": args.y, "shift": args.shift, "radius": args.radius}
-        res = send_action("gap", params)
+        res = send_action("recolor", {
+            "x": args.x,
+            "y": args.y,
+            "index": args.index,
+            "color": args.color
+        })
         print(json.dumps(res, indent=2))
 
     elif args.command == "auto":
-        params = {"count": args.diffs, "difficulty": args.difficulty}
-        res = send_action("autoGenerateDiffs", params)
+        res = send_action("autoGenerateDiffs", {
+            "count": args.diffs,
+            "difficulty": args.difficulty
+        })
+        print(json.dumps(res, indent=2))
+
+    elif args.command == "undo":
+        res = send_action("undo")
+        print(json.dumps(res, indent=2))
+
+    elif args.command == "redo":
+        res = send_action("redo")
+        print(json.dumps(res, indent=2))
+
+    elif args.command == "reset":
+        res = send_action("reset")
         print(json.dumps(res, indent=2))
 
     elif args.command == "export":
-        params = {"format": args.format, "scale": args.scale, "outputPath": args.out}
-        res = send_action("exportPuzzle", params)
-        print(json.dumps(res, indent=2))
-
-    elif args.command in ["undo", "redo", "reset"]:
-        res = send_action(args.command)
+        res = send_action("exportPuzzle", {
+            "outputDir": args.output_dir,
+            "scale": args.scale,
+            "format": args.format
+        })
         print(json.dumps(res, indent=2))
 
 if __name__ == "__main__":
